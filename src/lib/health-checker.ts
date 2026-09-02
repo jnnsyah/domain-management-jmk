@@ -1,6 +1,7 @@
 import { db } from '@/db';
 import { websites, endpoints } from '@/db/schema';
-import { eq, inArray } from 'drizzle-orm';
+import { eq, inArray, and, asc, sql } from 'drizzle-orm';
+import { dbRetry } from './db-utils';
 
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';
 const TIMEOUT_MS = 5000;
@@ -15,7 +16,7 @@ export interface CheckResult {
 }
 
 /**
- * Performs HTTP HEAD check with GET fallback and 1x retry on timeout (PRD Section 5.2 & 5.3)
+ * Performs HTTP HEAD check with GET fallback and 1x retry on timeout
  */
 export async function checkSingleEndpointUrl(urlStr: string): Promise<{ statusCode: number | null; isActive: boolean; errorDetail: string | null }> {
   async function performFetch(method: 'HEAD' | 'GET') {
@@ -75,7 +76,6 @@ export async function checkSingleEndpointUrl(urlStr: string): Promise<{ statusCo
 
   const status = response.status;
 
-  // Status code classification matching PRD Section 5.3
   if (status >= 200 && status < 300) {
     return {
       statusCode: status,
@@ -117,88 +117,117 @@ export async function checkSingleEndpointUrl(urlStr: string): Promise<{ statusCo
 }
 
 /**
- * Checks all endpoints for a specific website and updates DB
+ * Checks primary endpoint for a single specific website and updates DB (skipping sold websites)
  */
 export async function checkWebsiteEndpoints(websiteId: string): Promise<CheckResult[]> {
-  const targetWebsites = await db.select().from(websites).where(eq(websites.id, websiteId));
-  if (targetWebsites.length === 0) return [];
+  return await dbRetry(async () => {
+    const targetWebsites = await db.select().from(websites).where(eq(websites.id, websiteId));
+    if (targetWebsites.length === 0) return [];
 
-  const website = targetWebsites[0];
-  // PRD 5.1: Sold domains are skipped
-  if (website.status === 'sold') return [];
+    const website = targetWebsites[0];
+    // Skip sold websites
+    if (website.status === 'sold') return [];
 
-  const epList = await db.select().from(endpoints).where(eq(endpoints.website_id, websiteId));
-  const results: CheckResult[] = [];
+    const epList = await db.select().from(endpoints).where(eq(endpoints.website_id, websiteId));
+    if (epList.length === 0) return [];
 
-  for (const ep of epList) {
-    const check = await checkSingleEndpointUrl(ep.url);
-    const now = new Date();
+    const results: CheckResult[] = [];
 
-    await db
-      .update(endpoints)
-      .set({
+    // Prioritize primary endpoint, or fallback to all endpoints for single website check
+    for (const ep of epList) {
+      const check = await checkSingleEndpointUrl(ep.url);
+      const now = new Date();
+
+      await db
+        .update(endpoints)
+        .set({
+          status_code: check.statusCode,
+          is_active: check.isActive,
+          error_detail: check.errorDetail,
+          last_checked_at: now,
+        })
+        .where(eq(endpoints.id, ep.id));
+
+      results.push({
+        endpoint_id: ep.id,
+        url: ep.url,
         status_code: check.statusCode,
         is_active: check.isActive,
         error_detail: check.errorDetail,
-        last_checked_at: now,
-      })
-      .where(eq(endpoints.id, ep.id));
+      });
+    }
 
-    results.push({
-      endpoint_id: ep.id,
-      url: ep.url,
-      status_code: check.statusCode,
-      is_active: check.isActive,
-      error_detail: check.errorDetail,
-    });
-
-    // Throttling 300ms between requests (PRD 5.2)
-    await new Promise((resolve) => setTimeout(resolve, 300));
-  }
-
-  return results;
+    return results;
+  });
 }
 
 /**
- * Scans all active website endpoints in background (skipping sold websites)
+ * High-Scale Cron Engine: Priority Rotation & Concurrent Worker Batching
+ * Checks ONLY Primary Endpoints of Active Websites (Skipping Sold), ordered by last_checked_at ASC NULLS FIRST.
  */
-export async function checkAllActiveEndpoints(): Promise<{ total_checked: number; active: number; inactive: number }> {
-  // Fetch active websites only
-  const activeWebsites = await db.select().from(websites).where(eq(websites.status, 'active'));
-  if (activeWebsites.length === 0) {
-    return { total_checked: 0, active: 0, inactive: 0 };
-  }
+export async function checkAllActiveEndpoints(
+  batchLimit = 100,
+  concurrency = 10
+): Promise<{ total_checked: number; active: number; inactive: number; batch_limit: number }> {
+  return await dbRetry(async () => {
+    // 1. Fetch active websites only (excluding sold)
+    const activeWebsites = await db.select({ id: websites.id }).from(websites).where(eq(websites.status, 'active'));
+    if (activeWebsites.length === 0) {
+      return { total_checked: 0, active: 0, inactive: 0, batch_limit: batchLimit };
+    }
 
-  const activeWebsiteIds = activeWebsites.map((w) => w.id);
-  const activeEndpoints = await db.select().from(endpoints).where(inArray(endpoints.website_id, activeWebsiteIds));
+    const activeWebsiteIds = activeWebsites.map((w) => w.id);
 
-  let activeCount = 0;
-  let inactiveCount = 0;
+    // 2. Fetch PRIMARY endpoints for active websites, prioritized by oldest last_checked_at (NULLS FIRST)
+    const targetPrimaryEndpoints = await db
+      .select()
+      .from(endpoints)
+      .where(
+        and(
+          inArray(endpoints.website_id, activeWebsiteIds),
+          eq(endpoints.is_primary, true)
+        )
+      )
+      .orderBy(sql`${endpoints.last_checked_at} ASC NULLS FIRST`)
+      .limit(batchLimit);
 
-  for (const ep of activeEndpoints) {
-    const check = await checkSingleEndpointUrl(ep.url);
-    const now = new Date();
+    if (targetPrimaryEndpoints.length === 0) {
+      return { total_checked: 0, active: 0, inactive: 0, batch_limit: batchLimit };
+    }
 
-    await db
-      .update(endpoints)
-      .set({
-        status_code: check.statusCode,
-        is_active: check.isActive,
-        error_detail: check.errorDetail,
-        last_checked_at: now,
-      })
-      .where(eq(endpoints.id, ep.id));
+    let activeCount = 0;
+    let inactiveCount = 0;
 
-    if (check.isActive) activeCount++;
-    else inactiveCount++;
+    // 3. Process in concurrent worker batches (e.g. 10 workers in parallel)
+    for (let i = 0; i < targetPrimaryEndpoints.length; i += concurrency) {
+      const chunk = targetPrimaryEndpoints.slice(i, i + concurrency);
 
-    // Throttling 300ms between checks
-    await new Promise((resolve) => setTimeout(resolve, 300));
-  }
+      await Promise.all(
+        chunk.map(async (ep) => {
+          const check = await checkSingleEndpointUrl(ep.url);
+          const now = new Date();
 
-  return {
-    total_checked: activeEndpoints.length,
-    active: activeCount,
-    inactive: inactiveCount,
-  };
+          await db
+            .update(endpoints)
+            .set({
+              status_code: check.statusCode,
+              is_active: check.isActive,
+              error_detail: check.errorDetail,
+              last_checked_at: now,
+            })
+            .where(eq(endpoints.id, ep.id));
+
+          if (check.isActive) activeCount++;
+          else inactiveCount++;
+        })
+      );
+    }
+
+    return {
+      total_checked: targetPrimaryEndpoints.length,
+      active: activeCount,
+      inactive: inactiveCount,
+      batch_limit: batchLimit,
+    };
+  });
 }
