@@ -1,14 +1,16 @@
-import React from 'react';
-import { Plus, LogOut, LayoutDashboard, ShoppingBag, Shield } from 'lucide-react';
+import React, { useState } from 'react';
+import { Plus, LogOut, LayoutDashboard, ShoppingBag, Shield, ClipboardPaste, RefreshCw } from 'lucide-react';
 import { useToast } from './Toast';
 
 interface NavbarProps {
   currentPath?: string;
   onOpenIngestModal?: () => void;
+  onRefreshData?: () => void;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ currentPath = '/', onOpenIngestModal }) => {
+export const Navbar: React.FC<NavbarProps> = ({ currentPath = '/', onOpenIngestModal, onRefreshData }) => {
   const { showToast } = useToast();
+  const [quickPasteLoading, setQuickPasteLoading] = useState(false);
 
   const handleLogout = async () => {
     try {
@@ -19,6 +21,44 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPath = '/', onOpenIngestM
       }
     } catch {
       showToast('Gagal melakukan logout.', 'error');
+    }
+  };
+
+  // 1-Click Instant Add from Clipboard
+  const handleQuickPasteSave = async () => {
+    try {
+      const clipboardText = await navigator.clipboard.readText();
+      if (!clipboardText || !clipboardText.trim()) {
+        showToast('Clipboard kosong! Harap copy raw text kredensial terlebih dahulu.', 'error');
+        return;
+      }
+
+      setQuickPasteLoading(true);
+      showToast('Membaca clipboard & memproses domain...', 'info');
+
+      const res = await fetch('/api/websites/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ raw_text: clipboardText }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        showToast(
+          data.data.action === 'created'
+            ? `Domain '${data.data.domain}' berhasil ditambahkan dari clipboard!`
+            : `Domain '${data.data.domain}' berhasil diperbarui dari clipboard!`,
+          'success'
+        );
+        if (onRefreshData) onRefreshData();
+      } else {
+        showToast(data.error?.message || 'Gagal menyimpan data dari clipboard.', 'error');
+      }
+    } catch {
+      showToast('Gagal mengakses clipboard. Silakan beri izin browser atau gunakan tombol "+ Tambah Domain".', 'error');
+    } finally {
+      setQuickPasteLoading(false);
     }
   };
 
@@ -65,16 +105,30 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPath = '/', onOpenIngestM
             </a>
           </nav>
 
-          {/* Action Buttons: Add Domain & Logout */}
-          <div className="flex items-center space-x-2.5">
+          {/* Action Buttons: Add Domain, Quick Paste & Save, Logout */}
+          <div className="flex items-center space-x-2 sm:space-x-2.5">
             {onOpenIngestModal && (
-              <button
-                onClick={onOpenIngestModal}
-                className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-indigo-600/20 flex items-center space-x-1.5 touch-manipulation"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Tambah Domain</span>
-              </button>
+              <>
+                {/* 1-Click Instant Paste & Save Shortcut */}
+                <button
+                  onClick={handleQuickPasteSave}
+                  disabled={quickPasteLoading}
+                  className="px-3 py-2 bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 text-emerald-800 border border-emerald-200 rounded-xl text-xs font-bold transition-all flex items-center space-x-1.5 touch-manipulation shadow-xs"
+                  title="1-Click Instant Paste & Save dari Clipboard"
+                >
+                  <ClipboardPaste className={`w-4 h-4 text-emerald-600 ${quickPasteLoading ? 'animate-bounce' : ''}`} />
+                  <span className="hidden sm:inline">Paste & Simpan</span>
+                </button>
+
+                {/* Normal Add Domain Modal Toggle */}
+                <button
+                  onClick={onOpenIngestModal}
+                  className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-indigo-600/20 flex items-center space-x-1.5 touch-manipulation"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Tambah Domain</span>
+                </button>
+              </>
             )}
 
             <button

@@ -17,7 +17,11 @@ export const DashboardApp: React.FC<DashboardAppProps> = ({ currentPath = '/', p
   return (
     <ToastProvider>
       <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans">
-        <Navbar currentPath={currentPath} onOpenIngestModal={() => setIsIngestOpen(true)} />
+        <Navbar
+          currentPath={currentPath}
+          onOpenIngestModal={() => setIsIngestOpen(true)}
+          onRefreshData={() => setRefreshTrigger((prev) => prev + 1)}
+        />
 
         <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
           {pageType === 'dashboard' ? (
