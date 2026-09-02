@@ -1,0 +1,97 @@
+---
+import '@/styles/globals.css';
+---
+
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Login - Web & Domain Inventory</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  </head>
+  <body class="bg-slate-50 text-slate-900 min-h-screen flex items-center justify-center p-4 sm:p-6 font-sans">
+    <div class="w-full max-w-md bg-white border border-slate-200 rounded-2xl shadow-xl shadow-slate-200/50 p-6 sm:p-8">
+      <div class="text-center mb-8">
+        <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-indigo-50 text-indigo-600 mb-4 border border-indigo-100 shadow-sm">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+          </svg>
+        </div>
+        <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Admin Dashboard</h1>
+        <p class="text-sm text-slate-500 mt-1.5">Masukkan master password untuk mengelola inventaris domain & kesehatan endpoint</p>
+      </div>
+
+      <div id="error-alert" class="hidden mb-6 p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-sm font-medium leading-relaxed"></div>
+
+      <form id="login-form" class="space-y-5">
+        <div>
+          <label for="password" class="block text-sm font-semibold text-slate-700 mb-2">Master Password</label>
+          <input
+            type="password"
+            id="password"
+            name="password"
+            required
+            placeholder="••••••••"
+            class="w-full px-4 py-3.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:bg-white focus:border-transparent transition-all text-base"
+          />
+        </div>
+
+        <button
+          type="submit"
+          id="submit-btn"
+          class="w-full py-3.5 px-4 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-semibold rounded-xl shadow-lg shadow-indigo-600/25 transition-all flex items-center justify-center space-x-2 text-base touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <span id="btn-text">Masuk ke Dashboard</span>
+          <svg id="btn-spinner" class="hidden animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+        </button>
+      </form>
+    </div>
+
+    <script>
+      const form = document.getElementById('login-form') as HTMLFormElement;
+      const errorAlert = document.getElementById('error-alert') as HTMLDivElement;
+      const submitBtn = document.getElementById('submit-btn') as HTMLButtonElement;
+      const btnText = document.getElementById('btn-text') as HTMLSpanElement;
+      const btnSpinner = document.getElementById('btn-spinner') as SVGElement;
+      const passwordInput = document.getElementById('password') as HTMLInputElement;
+
+      form?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        errorAlert.classList.add('hidden');
+        errorAlert.textContent = '';
+        submitBtn.disabled = true;
+        btnText.textContent = 'Memverifikasi...';
+        btnSpinner.classList.remove('hidden');
+
+        try {
+          const res = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password: passwordInput.value }),
+          });
+
+          const data = await res.json();
+
+          if (res.ok && data.success) {
+            window.location.href = '/';
+          } else {
+            errorAlert.textContent = data.error?.message || 'Gagal masuk. Periksa kembali password Anda.';
+            errorAlert.classList.remove('hidden');
+          }
+        } catch (err) {
+          errorAlert.textContent = 'Terjadi gangguan jaringan. Gagal terhubung ke server.';
+          errorAlert.classList.remove('hidden');
+        } finally {
+          submitBtn.disabled = false;
+          btnText.textContent = 'Masuk ke Dashboard';
+          btnSpinner.classList.add('hidden');
+        }
+      });
+    </script>
+  </body>
+</html>
