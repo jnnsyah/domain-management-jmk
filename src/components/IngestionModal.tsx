@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, FileText, CheckCircle2, AlertCircle } from 'lucide-react';
+import { X, FileText, CheckCircle2, AlertCircle, Clipboard } from 'lucide-react';
 import { parseRawText } from '@/lib/parser';
 import { useToast } from './Toast';
 
@@ -29,6 +29,20 @@ export const IngestionModal: React.FC<IngestionModalProps> = ({ isOpen, onClose,
   if (!isOpen) return null;
 
   const parsedPreview = rawText.trim() ? parseRawText(rawText) : null;
+
+  const handlePasteFromClipboard = async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (text) {
+        setRawText(text);
+        showToast('Teks berhasil ditempel dari clipboard!', 'success');
+      } else {
+        showToast('Clipboard kosong.', 'error');
+      }
+    } catch {
+      showToast('Gagal membaca clipboard. Silakan tempel manual (Ctrl+V).', 'error');
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -108,7 +122,19 @@ export const IngestionModal: React.FC<IngestionModalProps> = ({ isOpen, onClose,
               )}
 
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Raw Text Input</label>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-sm font-semibold text-slate-700">Raw Text Input</label>
+                  <button
+                    type="button"
+                    onClick={handlePasteFromClipboard}
+                    className="px-3 py-1 bg-indigo-50 hover:bg-indigo-100 active:bg-indigo-200 text-indigo-700 border border-indigo-200 rounded-xl text-xs font-bold transition-all flex items-center space-x-1.5 shadow-xs"
+                    title="Tempel dari Clipboard"
+                  >
+                    <Clipboard className="w-3.5 h-3.5" />
+                    <span>Paste dari Clipboard</span>
+                  </button>
+                </div>
+
                 <textarea
                   rows={10}
                   value={rawText}
