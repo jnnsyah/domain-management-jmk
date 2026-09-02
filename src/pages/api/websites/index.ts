@@ -118,6 +118,7 @@ export const GET: APIRoute = async ({ url }) => {
         ip: w.ip,
         email: w.email,
         login_user: w.login_user,
+        has_gsocket_root: Boolean(w.gsocket_root),
         status: w.status,
         primary_endpoint: primaryEp
           ? {

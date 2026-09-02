@@ -556,10 +556,11 @@ export const Datatable: React.FC<{ initialPage?: number }> = () => {
                         </td>
 
                         <td className="p-3.5">
-                          <div className="flex items-center space-x-2">
-                            <span className="font-bold text-slate-900 truncate max-w-[160px] sm:max-w-[200px]">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span className="font-bold text-slate-900 truncate max-w-[150px] sm:max-w-[180px]">
                               {row.domain}
                             </span>
+
                             <span
                               className={`px-1.5 py-0.2 rounded-full text-[9px] font-bold ${
                                 row.status === 'sold'
@@ -569,6 +570,13 @@ export const Datatable: React.FC<{ initialPage?: number }> = () => {
                             >
                               {row.status === 'sold' ? 'SOLD' : 'ACTIVE'}
                             </span>
+
+                            {/* Red ROOT Badge Label */}
+                            {row.has_gsocket_root && (
+                              <span className="px-1.5 py-0.2 rounded-full text-[9px] font-black bg-rose-100 text-rose-800 border border-rose-200 shadow-2xs">
+                                ROOT
+                              </span>
+                            )}
                           </div>
                           {row.login_user && (
                             <div className="text-[11px] text-slate-400 mt-0.5">User: {row.login_user}</div>
@@ -672,13 +680,21 @@ export const Datatable: React.FC<{ initialPage?: number }> = () => {
                     <h3 className="font-bold text-slate-900 text-base truncate leading-tight">
                       {activeSelectedRow.domain}
                     </h3>
-                    <div className="flex items-center space-x-2 mt-0.5">
+                    <div className="flex items-center space-x-1.5 mt-0.5">
                       <span className={`px-2 py-0.2 rounded text-[10px] font-bold ${activeSelectedRow.status === 'sold' ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'}`}>
                         {activeSelectedRow.status.toUpperCase()}
                       </span>
+
+                      {/* Red ROOT Badge Label in Detail Pane */}
+                      {activeDetailCache?.data?.credentials?.gsocket_root && (
+                        <span className="px-2 py-0.2 rounded text-[10px] font-black bg-rose-100 text-rose-800 border border-rose-200">
+                          ROOT
+                        </span>
+                      )}
+
                       <button
                         onClick={() => copyToClipboard(activeSelectedRow.domain, 'Domain Name')}
-                        className="text-slate-400 hover:text-indigo-600 text-xs flex items-center space-x-1"
+                        className="text-slate-400 hover:text-indigo-600 text-xs flex items-center space-x-1 ml-1"
                       >
                         <Copy className="w-3 h-3" />
                         <span>Copy</span>
@@ -966,13 +982,16 @@ export const Datatable: React.FC<{ initialPage?: number }> = () => {
                         )}
 
                         {activeDetailCache.data.credentials.gsocket_root && (
-                          <div className="flex items-center justify-between p-2 bg-white rounded-lg border border-slate-200">
-                            <span className="text-slate-500">Gsocket Root (RAW):</span>
+                          <div className="flex items-center justify-between p-2 bg-white rounded-lg border border-rose-200 bg-rose-50/50">
+                            <span className="text-rose-800 font-bold flex items-center space-x-1">
+                              <span>Gsocket Root (RAW):</span>
+                              <span className="px-1 py-0.2 rounded text-[9px] font-black bg-rose-600 text-white">ROOT</span>
+                            </span>
                             <div className="flex items-center space-x-1.5">
-                              <span className="font-mono text-indigo-900 font-bold bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-100">
+                              <span className="font-mono text-rose-900 font-extrabold bg-rose-100 px-1.5 py-0.5 rounded border border-rose-200">
                                 {activeDetailCache.data.credentials.gsocket_root}
                               </span>
-                              <button onClick={() => copyToClipboard(activeDetailCache.data.credentials.gsocket_root, 'Gsocket Root RAW')} className="text-slate-400 hover:text-indigo-600">
+                              <button onClick={() => copyToClipboard(activeDetailCache.data.credentials.gsocket_root, 'Gsocket Root RAW')} className="text-slate-400 hover:text-rose-600">
                                 <Copy className="w-3 h-3" />
                               </button>
                             </div>
