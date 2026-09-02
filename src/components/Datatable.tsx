@@ -169,6 +169,19 @@ export const Datatable: React.FC<{ initialPage?: number }> = () => {
     });
   };
 
+  // Apply WP Login URL Template
+  const handleApplyWpTemplate = (path: '/wp-login.php' | '/wp-admin/') => {
+    const domain = activeSelectedRow?.domain || '';
+    const cleanDomain = domain.replace(/^https?:\/\//, '').replace(/\/$/, '');
+    if (!cleanDomain) {
+      showToast('Nama domain tidak ditemukan.', 'error');
+      return;
+    }
+    const generatedUrl = `https://${cleanDomain}${path}`;
+    setEditForm((prev) => ({ ...prev, login_url: generatedUrl }));
+    showToast(`Template '${path}' diterapkan!`, 'success');
+  };
+
   // Submit edit form in right pane
   const handleSaveEditRightPane = async (websiteId: string) => {
     setSavingEdit(true);
@@ -768,13 +781,36 @@ export const Datatable: React.FC<{ initialPage?: number }> = () => {
                     <div className="space-y-3 bg-slate-50/80 p-4 border border-indigo-100 rounded-2xl text-xs">
                       <div className="font-bold text-slate-900 border-b border-slate-200 pb-1.5">Edit Data Domain</div>
 
+                      {/* Login URL Input + WP Login Template Shortcut Buttons */}
                       <div>
-                        <label className="block text-slate-600 font-semibold mb-1">Login URL</label>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="block text-slate-600 font-semibold">Login URL</label>
+                          <div className="flex items-center space-x-1">
+                            <button
+                              type="button"
+                              onClick={() => handleApplyWpTemplate('/wp-login.php')}
+                              className="px-2 py-0.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded text-[10px] font-bold"
+                              title="Terapkan template /wp-login.php"
+                            >
+                              + /wp-login.php
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleApplyWpTemplate('/wp-admin/')}
+                              className="px-2 py-0.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded text-[10px] font-bold"
+                              title="Terapkan template /wp-admin/"
+                            >
+                              + /wp-admin/
+                            </button>
+                          </div>
+                        </div>
+
                         <input
                           type="text"
                           value={editForm.login_url}
                           onChange={(e) => setEditForm({ ...editForm, login_url: e.target.value })}
-                          className="w-full p-2 bg-white border border-slate-300 rounded-xl text-slate-900 focus:ring-2 focus:ring-indigo-600 focus:outline-none"
+                          placeholder="https://example.com/wp-login.php"
+                          className="w-full p-2 bg-white border border-slate-300 rounded-xl text-slate-900 font-mono focus:ring-2 focus:ring-indigo-600 focus:outline-none"
                         />
                       </div>
 
