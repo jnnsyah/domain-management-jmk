@@ -2,20 +2,7 @@ import type { APIRoute } from 'astro';
 import { db } from '@/db';
 import { websites, endpoints } from '@/db/schema';
 import { eq, ilike, or, and, desc, asc } from 'drizzle-orm';
-
-async function fetchDbWithRetry<T>(fn: () => Promise<T>, retries = 2): Promise<T> {
-  let attempt = 0;
-  while (attempt < retries) {
-    try {
-      return await fn();
-    } catch (err) {
-      attempt++;
-      if (attempt >= retries) throw err;
-      await new Promise(r => setTimeout(r, 200));
-    }
-  }
-  throw new Error('Database fetch failed');
-}
+import { dbRetry } from '@/lib/db-utils';
 
 export const GET: APIRoute = async ({ url }) => {
   try {
@@ -29,7 +16,7 @@ export const GET: APIRoute = async ({ url }) => {
     const sortOrder = params.get('order') || 'desc';
 
     // Fetch websites & endpoints with automatic retry for resilience
-    const [allDbWebsites, allDbEndpoints] = await fetchDbWithRetry(() =>
+    const [allDbWebsites, allDbEndpoints] = await dbRetry(() =>
       Promise.all([db.select().from(websites), db.select().from(endpoints)])
     );
 
@@ -52,6 +39,7 @@ export const GET: APIRoute = async ({ url }) => {
       total: allDbWebsites.length,
       active: allDbWebsites.filter(w => w.status === 'active').length,
       sold: allDbWebsites.filter(w => w.status === 'sold').length,
+      reject: allDbWebsites.filter(w => w.status === 'reject').length,
       primary_off: primaryOffCount,
     };
 
@@ -67,7 +55,7 @@ export const GET: APIRoute = async ({ url }) => {
       );
     }
 
-    if (statusFilter === 'active' || statusFilter === 'sold') {
+    if (['active', 'sold', 'reject'].includes(statusFilter)) {
       filteredWebsites = filteredWebsites.filter(w => w.status === statusFilter);
     }
 

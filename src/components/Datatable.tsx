@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Search, RefreshCw, ExternalLink, Copy, Activity, FileText, ChevronLeft, ChevronRight, Filter, ArrowUpDown, ShieldCheck, Trash2, Plus, Edit2, X, Check, Globe, Bookmark, Sparkles } from 'lucide-react';
+import { Search, RefreshCw, ExternalLink, Copy, Activity, FileText, ChevronLeft, ChevronRight, Filter, ArrowUpDown, ShieldCheck, Trash2, Plus, Edit2, X, Check, Globe, Bookmark, Sparkles, XCircle } from 'lucide-react';
 import { useToast } from './Toast';
 import { HandoverModal } from './HandoverModal';
 import { CheckoutModal } from './CheckoutModal';
@@ -31,7 +31,7 @@ export const Datatable: React.FC<{ initialPage?: number }> = () => {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const [search, setSearch] = useState('');
-  const [status, setStatus] = useState('all'); // 'all' | 'active' | 'sold'
+  const [status, setStatus] = useState('all'); // 'all' | 'active' | 'sold' | 'reject'
   const [endpointStatus, setEndpointStatus] = useState('all');
   const [sortKey, setSortKey] = useState('created_at_desc');
 
@@ -118,7 +118,7 @@ export const Datatable: React.FC<{ initialPage?: number }> = () => {
   };
 
   // Stats & Data state
-  const [stats, setStats] = useState({ total: 0, active: 0, sold: 0, primary_off: 0 });
+  const [stats, setStats] = useState({ total: 0, active: 0, sold: 0, reject: 0, primary_off: 0 });
   const [items, setItems] = useState<any[]>([]);
   const [pagination, setPagination] = useState({ page: 1, limit: 10, total_items: 0, total_pages: 1 });
   const [loading, setLoading] = useState(false);
@@ -136,6 +136,7 @@ export const Datatable: React.FC<{ initialPage?: number }> = () => {
   // Inline Edit Mode State for Right Pane
   const [isEditingRightPane, setIsEditingRightPane] = useState(false);
   const [editForm, setEditForm] = useState({
+    status: 'active',
     login_url: '',
     email: '',
     login_user: '',
@@ -230,6 +231,7 @@ export const Datatable: React.FC<{ initialPage?: number }> = () => {
     setIsEditingRightPane(true);
     const cacheData = detailCache[row.id]?.data;
     setEditForm({
+      status: row.status || cacheData?.status || 'active',
       login_url: row.login_url || cacheData?.login_url || '',
       email: cacheData?.email || '',
       login_user: row.login_user || cacheData?.login_user || '',
@@ -346,6 +348,31 @@ export const Datatable: React.FC<{ initialPage?: number }> = () => {
 
     navigator.clipboard.writeText(endpointUrls.join('\n'));
     showToast(`${endpointUrls.length} Primary Endpoint URL disalin ke clipboard!`, 'success');
+  };
+
+  // Multi-select bulk status update to REJECT
+  const handleBulkReject = async () => {
+    const selectedIds = Object.keys(selectedMap);
+    if (selectedIds.length === 0) return;
+    if (!confirm(`Ubah status ${selectedIds.length} domain terpilih menjadi REJECT?`)) return;
+
+    try {
+      const res = await fetch('/api/websites/bulk-status', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ website_ids: selectedIds, status: 'reject' }),
+      });
+      const json = await res.json();
+      if (res.ok && json.success) {
+        showToast(`${selectedIds.length} domain berhasil ditandai sebagai REJECT.`, 'success');
+        setSelectedMap({});
+        fetchData();
+      } else {
+        showToast(json.error?.message || 'Gagal mengubah status domain.', 'error');
+      }
+    } catch {
+      showToast('Gangguan jaringan saat mengubah status domain.', 'error');
+    }
   };
 
   // Actions
@@ -490,7 +517,7 @@ export const Datatable: React.FC<{ initialPage?: number }> = () => {
 
           <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             
-            {/* Status Filter Segmented Pill Buttons (Semua | Active | Sold) */}
+            {/* Status Filter Segmented Pill Buttons (Semua | Active | Sold | Reject) */}
             <div className="bg-slate-100 p-1 rounded-xl border border-slate-200 flex items-center space-x-1">
               <button
                 type="button"
@@ -535,6 +562,21 @@ export const Datatable: React.FC<{ initialPage?: number }> = () => {
                 }`}
               >
                 Sold
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setStatus('reject');
+                  setPage(1);
+                }}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  status === 'reject'
+                    ? 'bg-rose-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Reject
               </button>
             </div>
 
@@ -648,10 +690,12 @@ export const Datatable: React.FC<{ initialPage?: number }> = () => {
                               className={`px-1.5 py-0.2 rounded-full text-[9px] font-bold ${
                                 row.status === 'sold'
                                   ? 'bg-amber-100 text-amber-800 border border-amber-200'
+                                  : row.status === 'reject'
+                                  ? 'bg-rose-100 text-rose-800 border border-rose-200'
                                   : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
                               }`}
                             >
-                              {row.status === 'sold' ? 'SOLD' : 'ACTIVE'}
+                              {row.status ? row.status.toUpperCase() : 'ACTIVE'}
                             </span>
 
                             {/* Red ROOT Badge Label */}
@@ -764,7 +808,15 @@ export const Datatable: React.FC<{ initialPage?: number }> = () => {
                       {activeSelectedRow.domain}
                     </h3>
                     <div className="flex items-center space-x-1.5 mt-0.5">
-                      <span className={`px-2 py-0.2 rounded text-[10px] font-bold ${activeSelectedRow.status === 'sold' ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'}`}>
+                      <span
+                        className={`px-2 py-0.2 rounded text-[10px] font-bold ${
+                          activeSelectedRow.status === 'sold'
+                            ? 'bg-amber-100 text-amber-800'
+                            : activeSelectedRow.status === 'reject'
+                            ? 'bg-rose-100 text-rose-800 border border-rose-200'
+                            : 'bg-emerald-100 text-emerald-800'
+                        }`}
+                      >
                         {activeSelectedRow.status.toUpperCase()}
                       </span>
 
@@ -797,7 +849,7 @@ export const Datatable: React.FC<{ initialPage?: number }> = () => {
 
               {/* Quick Action Toolbar inside Right Pane */}
               <div className="flex flex-wrap items-center gap-2">
-                {activeSelectedRow.status !== 'sold' && (
+                {activeSelectedRow.status !== 'sold' && activeSelectedRow.status !== 'reject' && (
                   <button
                     onClick={() => handleLiveCheck(activeSelectedRow.id, activeSelectedRow.domain)}
                     disabled={liveCheckingId === activeSelectedRow.id}
@@ -847,12 +899,41 @@ export const Datatable: React.FC<{ initialPage?: number }> = () => {
               ) : activeDetailCache?.data ? (
                 <div className="space-y-4">
                   {isEditingRightPane ? (
-                    /* Inline Edit Form in Right Pane with Template Shortcuts for URL, User, and Pass */
+                    /* Inline Edit Form in Right Pane with Status Selector & Template Shortcuts */
                     <div className="space-y-4 bg-slate-50/80 p-4 border border-indigo-200 rounded-2xl text-xs shadow-xs">
                       <div className="flex items-center justify-between border-b border-slate-200 pb-2">
                         <div className="font-bold text-slate-900 flex items-center space-x-1.5 text-sm">
                           <Sparkles className="w-4 h-4 text-indigo-600" />
                           <span>Form Edit Data Domain</span>
+                        </div>
+                      </div>
+
+                      {/* Status Selector (Active vs Reject) */}
+                      <div>
+                        <label className="block text-slate-700 font-bold mb-1">Status Domain</label>
+                        <div className="flex items-center space-x-2">
+                          <button
+                            type="button"
+                            onClick={() => setEditForm((prev) => ({ ...prev, status: 'active' }))}
+                            className={`flex-1 py-1.5 px-3 rounded-xl font-bold border transition-all ${
+                              editForm.status === 'active'
+                                ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                                : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
+                            }`}
+                          >
+                            Active
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setEditForm((prev) => ({ ...prev, status: 'reject' }))}
+                            className={`flex-1 py-1.5 px-3 rounded-xl font-bold border transition-all ${
+                              editForm.status === 'reject'
+                                ? 'bg-rose-600 text-white border-rose-600 shadow-xs'
+                                : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
+                            }`}
+                          >
+                            Reject
+                          </button>
                         </div>
                       </div>
 
@@ -897,7 +978,7 @@ export const Datatable: React.FC<{ initialPage?: number }> = () => {
                         />
                       </div>
 
-                      {/* Username Login Input + Dynamic Preset Template Chips (Add & Remove) */}
+                      {/* Username Login Input + Dynamic Preset Template Chips */}
                       <div>
                         <div className="flex flex-wrap items-center justify-between gap-1 mb-1">
                           <label className="block text-slate-700 font-bold">Username Login</label>
@@ -945,7 +1026,7 @@ export const Datatable: React.FC<{ initialPage?: number }> = () => {
                         />
                       </div>
 
-                      {/* Password Login Input + Dynamic Preset Template Chips (Add & Remove) */}
+                      {/* Password Login Input + Dynamic Preset Template Chips */}
                       <div>
                         <div className="flex flex-wrap items-center justify-between gap-1 mb-1">
                           <label className="block text-slate-700 font-bold">Password Login (RAW)</label>
@@ -1217,7 +1298,7 @@ export const Datatable: React.FC<{ initialPage?: number }> = () => {
                       Daftar Endpoint ({activeDetailCache.data.endpoints?.length || 0})
                     </div>
 
-                    {activeDetailCache.data.status !== 'sold' && (
+                    {activeDetailCache.data.status !== 'sold' && activeDetailCache.data.status !== 'reject' && (
                       <form onSubmit={(e) => handleAddEndpointInline(e, activeSelectedRow.id)} className="flex space-x-2">
                         <input
                           type="url"
@@ -1264,7 +1345,7 @@ export const Datatable: React.FC<{ initialPage?: number }> = () => {
                             </div>
                           </div>
 
-                          {activeDetailCache.data.status !== 'sold' && (
+                          {activeDetailCache.data.status !== 'sold' && activeDetailCache.data.status !== 'reject' && (
                             <div className="flex items-center space-x-1 shrink-0 ml-1">
                               {!epItem.is_primary && (
                                 <button
@@ -1308,7 +1389,7 @@ export const Datatable: React.FC<{ initialPage?: number }> = () => {
 
       </div>
 
-      {/* Floating Multi-Select Bar with Copy Domain, Copy URL (https://), and Copy Endpoint Actions */}
+      {/* Floating Multi-Select Bar with Copy Domain, Copy URL (https://), Copy Endpoint, and Mark as Reject Actions */}
       <MultiSelectFloatingBar
         selectedCount={selectedList.length}
         onClearSelection={() => setSelectedMap({})}
@@ -1320,6 +1401,7 @@ export const Datatable: React.FC<{ initialPage?: number }> = () => {
         onCopySelectedDomains={handleCopySelectedDomains}
         onCopySelectedUrls={handleCopySelectedUrls}
         onCopySelectedEndpoints={handleCopySelectedEndpoints}
+        onRejectSelected={handleBulkReject}
       />
 
       {/* Modals */}

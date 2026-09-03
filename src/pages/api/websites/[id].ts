@@ -110,12 +110,15 @@ export const PUT: APIRoute = async ({ params, request }) => {
     }
 
     const body = await request.json().catch(() => ({}));
-    const { login_url, email, login_user, login_password, gsocket_user, gsocket_root } = body;
+    const { login_url, email, login_user, login_password, gsocket_user, gsocket_root, status } = body;
 
     const updatePayload: Record<string, any> = {
       updated_at: new Date(),
     };
 
+    if (status !== undefined && ['active', 'reject'].includes(status)) {
+      updatePayload.status = status;
+    }
     if (login_url !== undefined) updatePayload.login_url = login_url ? login_url.trim() : null;
     if (email !== undefined) updatePayload.email = email ? email.trim() : null;
     if (login_user !== undefined) updatePayload.login_user = login_user ? login_user.trim() : null;

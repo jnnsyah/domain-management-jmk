@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShoppingCart, FileText, X, Globe, Link, ExternalLink } from 'lucide-react';
+import { ShoppingCart, FileText, X, Globe, Link, ExternalLink, XCircle } from 'lucide-react';
 
 interface MultiSelectFloatingBarProps {
   selectedCount: number;
@@ -9,6 +9,7 @@ interface MultiSelectFloatingBarProps {
   onCopySelectedDomains: () => void;
   onCopySelectedUrls: () => void;
   onCopySelectedEndpoints: () => void;
+  onRejectSelected?: () => void;
 }
 
 export const MultiSelectFloatingBar: React.FC<MultiSelectFloatingBarProps> = ({
@@ -19,11 +20,12 @@ export const MultiSelectFloatingBar: React.FC<MultiSelectFloatingBarProps> = ({
   onCopySelectedDomains,
   onCopySelectedUrls,
   onCopySelectedEndpoints,
+  onRejectSelected,
 }) => {
   if (selectedCount === 0) return null;
 
   return (
-    <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-40 w-11/12 max-w-3xl animate-bounce-short">
+    <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-40 w-11/12 max-w-4xl animate-bounce-short">
       <div className="bg-slate-900/95 backdrop-blur-md text-white border border-slate-700/80 rounded-2xl p-3 sm:px-5 sm:py-3.5 shadow-2xl flex flex-wrap items-center justify-between gap-2.5">
         
         {/* Selected Counter & Clear selection */}
@@ -43,7 +45,7 @@ export const MultiSelectFloatingBar: React.FC<MultiSelectFloatingBarProps> = ({
           </button>
         </div>
 
-        {/* Action Buttons: Copy Domain, Copy URL (https://), Copy Endpoint, Handover, Catat Penjualan */}
+        {/* Action Buttons: Copy Domain, Copy URL (https://), Copy Endpoint, Reject, Handover, Catat Penjualan */}
         <div className="flex items-center space-x-1.5 sm:space-x-2 flex-wrap">
           <button
             onClick={onCopySelectedDomains}
@@ -79,6 +81,17 @@ export const MultiSelectFloatingBar: React.FC<MultiSelectFloatingBarProps> = ({
             <FileText className="w-3.5 h-3.5 text-amber-400" />
             <span>Handover</span>
           </button>
+
+          {onRejectSelected && (
+            <button
+              onClick={onRejectSelected}
+              className="px-3 py-1.5 bg-rose-600 hover:bg-rose-500 active:bg-rose-700 text-white text-xs font-bold rounded-xl transition-all flex items-center space-x-1 shadow-md shadow-rose-600/30"
+              title="Tandai Domain Terpilih sebagai Reject"
+            >
+              <XCircle className="w-3.5 h-3.5" />
+              <span>Mark as Reject</span>
+            </button>
+          )}
 
           <button
             onClick={onOpenCheckout}
