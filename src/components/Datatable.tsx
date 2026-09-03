@@ -1098,10 +1098,11 @@ export const Datatable: React.FC<{ initialPage?: number }> = () => {
                           <span className="text-slate-500">IP Address:</span>
                           <button
                             onClick={() => copyToClipboard(activeDetailCache.data.ip, 'IP Address')}
-                            className="font-mono text-slate-900 font-bold hover:text-indigo-600 flex items-center space-x-1"
+                            className="font-mono text-slate-900 font-bold hover:text-indigo-600 flex items-center space-x-1 cursor-pointer"
+                            title="Klik untuk salin IP Address"
                           >
                             <span>{activeDetailCache.data.ip || 'UNRESOLVED'}</span>
-                            <Copy className="w-3 h-3 text-slate-400" />
+                            <Copy className="w-3 h-3 text-slate-400 hover:text-indigo-600" />
                           </button>
                         </div>
 
@@ -1122,7 +1123,7 @@ export const Datatable: React.FC<{ initialPage?: number }> = () => {
                         {activeDetailCache.data.email && (
                           <div className="flex items-center justify-between">
                             <span className="text-slate-500">Email:</span>
-                            <button onClick={() => copyToClipboard(activeDetailCache.data.email, 'Email')} className="text-slate-900 font-semibold hover:text-indigo-600 flex items-center space-x-1">
+                            <button onClick={() => copyToClipboard(activeDetailCache.data.email, 'Email')} className="text-slate-900 font-semibold hover:text-indigo-600 flex items-center space-x-1 cursor-pointer">
                               <span>{activeDetailCache.data.email}</span>
                               <Copy className="w-3 h-3 text-slate-400" />
                             </button>
@@ -1130,66 +1131,79 @@ export const Datatable: React.FC<{ initialPage?: number }> = () => {
                         )}
                       </div>
 
-                      {/* Raw Plaintext Credentials Card */}
+                      {/* Interactive Click-to-Copy Raw Plaintext Credentials Card */}
                       <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-2">
-                        <div className="font-bold text-slate-900 text-xs border-b border-slate-200/80 pb-1 flex items-center space-x-1">
-                          <ShieldCheck className="w-3.5 h-3.5 text-indigo-600" />
-                          <span>Kredensial Raw Plaintext</span>
+                        <div className="font-bold text-slate-900 text-xs border-b border-slate-200/80 pb-1 flex items-center justify-between">
+                          <div className="flex items-center space-x-1">
+                            <ShieldCheck className="w-3.5 h-3.5 text-indigo-600" />
+                            <span>Kredensial Raw Plaintext</span>
+                          </div>
+                          <span className="text-[10px] text-slate-400 font-normal">Klik nilai untuk salin 📋</span>
                         </div>
 
-                        <div className="flex items-center justify-between p-2 bg-white rounded-lg border border-slate-200">
-                          <span className="text-slate-500">Username:</span>
+                        {/* Username Row */}
+                        <div
+                          onClick={() => copyToClipboard(activeDetailCache.data.login_user, 'Username')}
+                          className="flex items-center justify-between p-2 bg-white rounded-lg border border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/50 cursor-pointer transition-all group"
+                          title="Klik untuk menyalin Username"
+                        >
+                          <span className="text-slate-500 font-medium">Username:</span>
                           <div className="flex items-center space-x-1.5">
-                            <span className="font-mono text-slate-900 font-bold">{activeDetailCache.data.login_user || '-'}</span>
-                            {activeDetailCache.data.login_user && (
-                              <button onClick={() => copyToClipboard(activeDetailCache.data.login_user, 'Username')} className="text-slate-400 hover:text-indigo-600">
-                                <Copy className="w-3 h-3" />
-                              </button>
-                            )}
+                            <span className="font-mono text-slate-900 font-bold group-hover:text-indigo-700 transition-colors">
+                              {activeDetailCache.data.login_user || '-'}
+                            </span>
+                            <Copy className="w-3 h-3 text-slate-400 group-hover:text-indigo-600 transition-colors" />
                           </div>
                         </div>
 
-                        <div className="flex items-center justify-between p-2 bg-white rounded-lg border border-slate-200">
-                          <span className="text-slate-500">Password (RAW):</span>
+                        {/* Password RAW Row */}
+                        <div
+                          onClick={() => copyToClipboard(activeDetailCache.data.credentials.login_password, 'Password (RAW)')}
+                          className="flex items-center justify-between p-2 bg-white rounded-lg border border-slate-200 hover:border-amber-300 hover:bg-amber-50/50 cursor-pointer transition-all group"
+                          title="Klik untuk menyalin Password (RAW)"
+                        >
+                          <span className="text-slate-500 font-medium">Password (RAW):</span>
                           <div className="flex items-center space-x-1.5">
-                            <span className="font-mono text-amber-900 font-bold bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 select-all">
+                            <span className="font-mono text-amber-900 font-bold bg-amber-50 group-hover:bg-amber-100 px-1.5 py-0.5 rounded border border-amber-200 select-all transition-colors">
                               {activeDetailCache.data.credentials.login_password || '-'}
                             </span>
-                            {activeDetailCache.data.credentials.login_password && (
-                              <button onClick={() => copyToClipboard(activeDetailCache.data.credentials.login_password, 'Password RAW')} className="text-slate-400 hover:text-indigo-600">
-                                <Copy className="w-3 h-3" />
-                              </button>
-                            )}
+                            <Copy className="w-3 h-3 text-slate-400 group-hover:text-amber-600 transition-colors" />
                           </div>
                         </div>
 
+                        {/* Gsocket User RAW Row */}
                         {activeDetailCache.data.credentials.gsocket_user && (
-                          <div className="flex items-center justify-between p-2 bg-white rounded-lg border border-slate-200">
-                            <span className="text-slate-500">Gsocket User (RAW):</span>
+                          <div
+                            onClick={() => copyToClipboard(activeDetailCache.data.credentials.gsocket_user, 'Gsocket User (RAW)')}
+                            className="flex items-center justify-between p-2 bg-white rounded-lg border border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/50 cursor-pointer transition-all group"
+                            title="Klik untuk menyalin Gsocket User (RAW)"
+                          >
+                            <span className="text-slate-500 font-medium">Gsocket User (RAW):</span>
                             <div className="flex items-center space-x-1.5">
-                              <span className="font-mono text-indigo-900 font-bold bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-100">
+                              <span className="font-mono text-indigo-900 font-bold bg-indigo-50 group-hover:bg-indigo-100 px-1.5 py-0.5 rounded border border-indigo-100 transition-colors">
                                 {activeDetailCache.data.credentials.gsocket_user}
                               </span>
-                              <button onClick={() => copyToClipboard(activeDetailCache.data.credentials.gsocket_user, 'Gsocket User RAW')} className="text-slate-400 hover:text-indigo-600">
-                                <Copy className="w-3 h-3" />
-                              </button>
+                              <Copy className="w-3 h-3 text-slate-400 group-hover:text-indigo-600 transition-colors" />
                             </div>
                           </div>
                         )}
 
+                        {/* Gsocket Root RAW Row */}
                         {activeDetailCache.data.credentials.gsocket_root && (
-                          <div className="flex items-center justify-between p-2 bg-white rounded-lg border border-rose-200 bg-rose-50/50">
+                          <div
+                            onClick={() => copyToClipboard(activeDetailCache.data.credentials.gsocket_root, 'Gsocket Root (RAW)')}
+                            className="flex items-center justify-between p-2 bg-white rounded-lg border border-rose-200 bg-rose-50/50 hover:bg-rose-100/60 hover:border-rose-300 cursor-pointer transition-all group"
+                            title="Klik untuk menyalin Gsocket Root (RAW)"
+                          >
                             <span className="text-rose-800 font-bold flex items-center space-x-1">
                               <span>Gsocket Root (RAW):</span>
                               <span className="px-1 py-0.2 rounded text-[9px] font-black bg-rose-600 text-white">ROOT</span>
                             </span>
                             <div className="flex items-center space-x-1.5">
-                              <span className="font-mono text-rose-900 font-extrabold bg-rose-100 px-1.5 py-0.5 rounded border border-rose-200">
+                              <span className="font-mono text-rose-900 font-extrabold bg-rose-100 group-hover:bg-rose-200 px-1.5 py-0.5 rounded border border-rose-200 transition-colors">
                                 {activeDetailCache.data.credentials.gsocket_root}
                               </span>
-                              <button onClick={() => copyToClipboard(activeDetailCache.data.credentials.gsocket_root, 'Gsocket Root RAW')} className="text-slate-400 hover:text-rose-600">
-                                <Copy className="w-3 h-3" />
-                              </button>
+                              <Copy className="w-3 h-3 text-rose-400 group-hover:text-rose-700 transition-colors" />
                             </div>
                           </div>
                         )}
