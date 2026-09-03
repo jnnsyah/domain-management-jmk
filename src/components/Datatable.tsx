@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Search, RefreshCw, ExternalLink, Copy, Activity, FileText, ChevronLeft, ChevronRight, Filter, ArrowUpDown, ShieldCheck, Trash2, Plus, Edit2, X, Check, Globe } from 'lucide-react';
+import { Search, RefreshCw, ExternalLink, Copy, Activity, FileText, ChevronLeft, ChevronRight, Filter, ArrowUpDown, ShieldCheck, Trash2, Plus, Edit2, X, Check, Globe, Bookmark, Sparkles } from 'lucide-react';
 import { useToast } from './Toast';
 import { HandoverModal } from './HandoverModal';
 import { CheckoutModal } from './CheckoutModal';
@@ -31,6 +31,33 @@ export const Datatable: React.FC<{ initialPage?: number }> = () => {
   const [status, setStatus] = useState('all'); // 'all' | 'active' | 'sold'
   const [endpointStatus, setEndpointStatus] = useState('all');
   const [sortKey, setSortKey] = useState('created_at_desc');
+
+  // Custom User/Pass Templates stored in localStorage
+  const [savedUserTemplate, setSavedUserTemplate] = useState<string>('admin');
+  const [savedPassTemplate, setSavedPassTemplate] = useState<string>('');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const u = localStorage.getItem('sh_tpl_user');
+      const p = localStorage.getItem('sh_tpl_pass');
+      if (u) setSavedUserTemplate(u);
+      if (p) setSavedPassTemplate(p);
+    }
+  }, []);
+
+  const handleSaveCustomTemplates = () => {
+    if (typeof window !== 'undefined') {
+      if (editForm.login_user) {
+        localStorage.setItem('sh_tpl_user', editForm.login_user);
+        setSavedUserTemplate(editForm.login_user);
+      }
+      if (editForm.login_password) {
+        localStorage.setItem('sh_tpl_pass', editForm.login_password);
+        setSavedPassTemplate(editForm.login_password);
+      }
+      showToast('Template Username & Password tersimpan di browser!', 'success');
+    }
+  };
 
   // Parse sortKey into sort and order
   const getSortOrder = (key: string) => {
@@ -169,17 +196,17 @@ export const Datatable: React.FC<{ initialPage?: number }> = () => {
     });
   };
 
-  // Apply WP Login URL Template
-  const handleApplyWpTemplate = (path: '/wp-login.php' | '/wp-admin/') => {
+  // Apply Login URL Template
+  const handleApplyUrlTemplate = (path: string) => {
     const domain = activeSelectedRow?.domain || '';
     const cleanDomain = domain.replace(/^https?:\/\//, '').replace(/\/$/, '');
     if (!cleanDomain) {
       showToast('Nama domain tidak ditemukan.', 'error');
       return;
     }
-    const generatedUrl = `https://${cleanDomain}${path}`;
+    const generatedUrl = `https://${cleanDomain}${path.startsWith('/') ? path : '/' + path}`;
     setEditForm((prev) => ({ ...prev, login_url: generatedUrl }));
-    showToast(`Template '${path}' diterapkan!`, 'success');
+    showToast(`Template URL '${path}' diterapkan!`, 'info');
   };
 
   // Submit edit form in right pane
@@ -752,10 +779,10 @@ export const Datatable: React.FC<{ initialPage?: number }> = () => {
                 {!isEditingRightPane ? (
                   <button
                     onClick={() => handleStartEditRightPane(activeSelectedRow)}
-                    className="px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 rounded-xl text-xs font-semibold flex items-center space-x-1.5"
+                    className="px-3 py-1.5 bg-indigo-600 text-white hover:bg-indigo-700 rounded-xl text-xs font-bold flex items-center space-x-1.5 shadow-sm"
                   >
-                    <Edit2 className="w-3.5 h-3.5 text-indigo-600" />
-                    <span>Edit</span>
+                    <Edit2 className="w-3.5 h-3.5" />
+                    <span>Edit Domain</span>
                   </button>
                 ) : (
                   <button
@@ -777,30 +804,52 @@ export const Datatable: React.FC<{ initialPage?: number }> = () => {
               ) : activeDetailCache?.data ? (
                 <div className="space-y-4">
                   {isEditingRightPane ? (
-                    /* Inline Edit Form in Right Pane */
-                    <div className="space-y-3 bg-slate-50/80 p-4 border border-indigo-100 rounded-2xl text-xs">
-                      <div className="font-bold text-slate-900 border-b border-slate-200 pb-1.5">Edit Data Domain</div>
+                    /* Inline Edit Form in Right Pane with Template Shortcuts for URL, User, and Pass */
+                    <div className="space-y-4 bg-slate-50/80 p-4 border border-indigo-200 rounded-2xl text-xs shadow-xs">
+                      <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                        <div className="font-bold text-slate-900 flex items-center space-x-1.5 text-sm">
+                          <Sparkles className="w-4 h-4 text-indigo-600" />
+                          <span>Form Edit Data Domain</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleSaveCustomTemplates}
+                          className="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 rounded-lg text-[11px] font-bold transition-all flex items-center space-x-1"
+                          title="Simpan Username & Password saat ini sebagai Template Default di Browser"
+                        >
+                          <Bookmark className="w-3 h-3 text-amber-600" />
+                          <span>Simpan Default Saya</span>
+                        </button>
+                      </div>
 
                       {/* Login URL Input + WP Login Template Shortcut Buttons */}
                       <div>
-                        <div className="flex items-center justify-between mb-1">
-                          <label className="block text-slate-600 font-semibold">Login URL</label>
-                          <div className="flex items-center space-x-1">
+                        <div className="flex flex-wrap items-center justify-between gap-1 mb-1">
+                          <label className="block text-slate-700 font-bold">Login URL</label>
+                          <div className="flex flex-wrap items-center gap-1">
                             <button
                               type="button"
-                              onClick={() => handleApplyWpTemplate('/wp-login.php')}
+                              onClick={() => handleApplyUrlTemplate('/wp-login.php')}
                               className="px-2 py-0.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded text-[10px] font-bold"
-                              title="Terapkan template /wp-login.php"
+                              title="Terapkan /wp-login.php"
                             >
                               + /wp-login.php
                             </button>
                             <button
                               type="button"
-                              onClick={() => handleApplyWpTemplate('/wp-admin/')}
+                              onClick={() => handleApplyUrlTemplate('/wp-admin/')}
                               className="px-2 py-0.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded text-[10px] font-bold"
-                              title="Terapkan template /wp-admin/"
+                              title="Terapkan /wp-admin/"
                             >
                               + /wp-admin/
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleApplyUrlTemplate('/login.php')}
+                              className="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded text-[10px] font-bold"
+                              title="Terapkan /login.php"
+                            >
+                              + /login.php
                             </button>
                           </div>
                         </div>
@@ -814,18 +863,37 @@ export const Datatable: React.FC<{ initialPage?: number }> = () => {
                         />
                       </div>
 
+                      {/* Username Login Input + Preset Template Buttons */}
                       <div>
-                        <label className="block text-slate-600 font-semibold mb-1">Email Kontak</label>
-                        <input
-                          type="email"
-                          value={editForm.email}
-                          onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
-                          className="w-full p-2 bg-white border border-slate-300 rounded-xl text-slate-900 focus:ring-2 focus:ring-indigo-600 focus:outline-none"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-slate-600 font-semibold mb-1">Username Login</label>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="block text-slate-700 font-bold">Username Login</label>
+                          <div className="flex flex-wrap items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => setEditForm((prev) => ({ ...prev, login_user: 'admin' }))}
+                              className="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded text-[10px] font-bold"
+                            >
+                              admin
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setEditForm((prev) => ({ ...prev, login_user: 'user' }))}
+                              className="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded text-[10px] font-bold"
+                            >
+                              user
+                            </button>
+                            {savedUserTemplate && (
+                              <button
+                                type="button"
+                                onClick={() => setEditForm((prev) => ({ ...prev, login_user: savedUserTemplate }))}
+                                className="px-2 py-0.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded text-[10px] font-bold"
+                                title="Default Tersimpan"
+                              >
+                                ⭐ {savedUserTemplate}
+                              </button>
+                            )}
+                          </div>
+                        </div>
                         <input
                           type="text"
                           value={editForm.login_user}
@@ -834,13 +902,52 @@ export const Datatable: React.FC<{ initialPage?: number }> = () => {
                         />
                       </div>
 
+                      {/* Password Login Input + Preset Template Buttons */}
                       <div>
-                        <label className="block text-slate-600 font-semibold mb-1">Password Login (RAW)</label>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="block text-slate-700 font-bold">Password Login (RAW)</label>
+                          <div className="flex flex-wrap items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => setEditForm((prev) => ({ ...prev, login_password: 'admin' }))}
+                              className="px-2 py-0.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 rounded text-[10px] font-bold"
+                            >
+                              admin
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setEditForm((prev) => ({ ...prev, login_password: 'Password123!' }))}
+                              className="px-2 py-0.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 rounded text-[10px] font-bold"
+                            >
+                              Password123!
+                            </button>
+                            {savedPassTemplate && (
+                              <button
+                                type="button"
+                                onClick={() => setEditForm((prev) => ({ ...prev, login_password: savedPassTemplate }))}
+                                className="px-2 py-0.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded text-[10px] font-bold truncate max-w-[100px]"
+                                title={`Default Tersimpan: ${savedPassTemplate}`}
+                              >
+                                ⭐ {savedPassTemplate}
+                              </button>
+                            )}
+                          </div>
+                        </div>
                         <input
                           type="text"
                           value={editForm.login_password}
                           onChange={(e) => setEditForm({ ...editForm, login_password: e.target.value })}
                           className="w-full p-2 bg-white border border-slate-300 rounded-xl text-slate-900 font-mono focus:ring-2 focus:ring-indigo-600 focus:outline-none"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-slate-600 font-semibold mb-1">Email Kontak</label>
+                        <input
+                          type="email"
+                          value={editForm.email}
+                          onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                          className="w-full p-2 bg-white border border-slate-300 rounded-xl text-slate-900 focus:ring-2 focus:ring-indigo-600 focus:outline-none"
                         />
                       </div>
 
@@ -876,10 +983,10 @@ export const Datatable: React.FC<{ initialPage?: number }> = () => {
                           type="button"
                           onClick={() => handleSaveEditRightPane(activeSelectedRow.id)}
                           disabled={savingEdit}
-                          className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl flex items-center space-x-1"
+                          className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl flex items-center space-x-1.5 shadow-sm"
                         >
-                          <Check className="w-3.5 h-3.5" />
-                          <span>{savingEdit ? 'Menyimpan...' : 'Simpan'}</span>
+                          <Check className="w-4 h-4" />
+                          <span>{savingEdit ? 'Menyimpan...' : 'Simpan Perubahan'}</span>
                         </button>
                       </div>
                     </div>
