@@ -21,6 +21,9 @@ const sortOptions: SelectOption[] = [
   { value: 'updated_at_desc', label: 'Urutkan: Terakhir Update' },
 ];
 
+const DEFAULT_USER_TEMPLATES = ['wphelp', 'admin'];
+const DEFAULT_PASS_TEMPLATES = ['SMAX@inhere1337', 'KucingLiar1337909'];
+
 export const Datatable: React.FC<{ initialPage?: number }> = () => {
   const { showToast } = useToast();
 
@@ -32,31 +35,71 @@ export const Datatable: React.FC<{ initialPage?: number }> = () => {
   const [endpointStatus, setEndpointStatus] = useState('all');
   const [sortKey, setSortKey] = useState('created_at_desc');
 
-  // Custom User/Pass Templates stored in localStorage
-  const [savedUserTemplate, setSavedUserTemplate] = useState<string>('admin');
-  const [savedPassTemplate, setSavedPassTemplate] = useState<string>('');
+  // Dynamic User/Pass Template Chips stored in localStorage
+  const [userTemplates, setUserTemplates] = useState<string[]>(DEFAULT_USER_TEMPLATES);
+  const [passTemplates, setPassTemplates] = useState<string[]>(DEFAULT_PASS_TEMPLATES);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const u = localStorage.getItem('sh_tpl_user');
-      const p = localStorage.getItem('sh_tpl_pass');
-      if (u) setSavedUserTemplate(u);
-      if (p) setSavedPassTemplate(p);
+      try {
+        const uRaw = localStorage.getItem('sh_user_tpls_v2');
+        const pRaw = localStorage.getItem('sh_pass_tpls_v2');
+        if (uRaw) setUserTemplates(JSON.parse(uRaw));
+        if (pRaw) setPassTemplates(JSON.parse(pRaw));
+      } catch (err) {
+        console.error('Failed to parse saved templates:', err);
+      }
     }
   }, []);
 
-  const handleSaveCustomTemplates = () => {
-    if (typeof window !== 'undefined') {
-      if (editForm.login_user) {
-        localStorage.setItem('sh_tpl_user', editForm.login_user);
-        setSavedUserTemplate(editForm.login_user);
+  const handleAddUserTemplate = () => {
+    const val = prompt('Masukkan template username baru:');
+    if (val && val.trim()) {
+      const trimmed = val.trim();
+      if (!userTemplates.includes(trimmed)) {
+        const updated = [...userTemplates, trimmed];
+        setUserTemplates(updated);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('sh_user_tpls_v2', JSON.stringify(updated));
+        }
+        showToast(`Template username '${trimmed}' ditambahkan!`, 'success');
       }
-      if (editForm.login_password) {
-        localStorage.setItem('sh_tpl_pass', editForm.login_password);
-        setSavedPassTemplate(editForm.login_password);
-      }
-      showToast('Template Username & Password tersimpan di browser!', 'success');
     }
+  };
+
+  const handleRemoveUserTemplate = (tpl: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const updated = userTemplates.filter((t) => t !== tpl);
+    setUserTemplates(updated);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('sh_user_tpls_v2', JSON.stringify(updated));
+    }
+    showToast(`Template username '${tpl}' dihapus.`, 'info');
+  };
+
+  const handleAddPassTemplate = () => {
+    const val = prompt('Masukkan template password baru:');
+    if (val && val.trim()) {
+      const trimmed = val.trim();
+      if (!passTemplates.includes(trimmed)) {
+        const updated = [...passTemplates, trimmed];
+        setPassTemplates(updated);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('sh_pass_tpls_v2', JSON.stringify(updated));
+        }
+        showToast(`Template password '${trimmed}' ditambahkan!`, 'success');
+      }
+    }
+  };
+
+  const handleRemovePassTemplate = (tpl: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const updated = passTemplates.filter((t) => t !== tpl);
+    setPassTemplates(updated);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('sh_pass_tpls_v2', JSON.stringify(updated));
+    }
+    showToast(`Template password '${tpl}' dihapus.`, 'info');
   };
 
   // Parse sortKey into sort and order
@@ -811,15 +854,6 @@ export const Datatable: React.FC<{ initialPage?: number }> = () => {
                           <Sparkles className="w-4 h-4 text-indigo-600" />
                           <span>Form Edit Data Domain</span>
                         </div>
-                        <button
-                          type="button"
-                          onClick={handleSaveCustomTemplates}
-                          className="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 rounded-lg text-[11px] font-bold transition-all flex items-center space-x-1"
-                          title="Simpan Username & Password saat ini sebagai Template Default di Browser"
-                        >
-                          <Bookmark className="w-3 h-3 text-amber-600" />
-                          <span>Simpan Default Saya</span>
-                        </button>
                       </div>
 
                       {/* Login URL Input + WP Login Template Shortcut Buttons */}
@@ -863,80 +897,99 @@ export const Datatable: React.FC<{ initialPage?: number }> = () => {
                         />
                       </div>
 
-                      {/* Username Login Input + Preset Template Buttons */}
+                      {/* Username Login Input + Dynamic Preset Template Chips (Add & Remove) */}
                       <div>
-                        <div className="flex items-center justify-between mb-1">
+                        <div className="flex flex-wrap items-center justify-between gap-1 mb-1">
                           <label className="block text-slate-700 font-bold">Username Login</label>
                           <div className="flex flex-wrap items-center gap-1">
-                            <button
-                              type="button"
-                              onClick={() => setEditForm((prev) => ({ ...prev, login_user: 'admin' }))}
-                              className="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded text-[10px] font-bold"
-                            >
-                              admin
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setEditForm((prev) => ({ ...prev, login_user: 'user' }))}
-                              className="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded text-[10px] font-bold"
-                            >
-                              user
-                            </button>
-                            {savedUserTemplate && (
-                              <button
-                                type="button"
-                                onClick={() => setEditForm((prev) => ({ ...prev, login_user: savedUserTemplate }))}
-                                className="px-2 py-0.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded text-[10px] font-bold"
-                                title="Default Tersimpan"
+                            {userTemplates.map((tpl) => (
+                              <div
+                                key={tpl}
+                                className="inline-flex items-center space-x-1 px-2 py-0.5 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded text-[10px] font-bold"
                               >
-                                ⭐ {savedUserTemplate}
-                              </button>
-                            )}
+                                <button
+                                  type="button"
+                                  onClick={() => setEditForm((prev) => ({ ...prev, login_user: tpl }))}
+                                  className="hover:underline font-mono"
+                                >
+                                  {tpl}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleRemoveUserTemplate(tpl, e)}
+                                  className="text-emerald-500 hover:text-rose-600 ml-0.5"
+                                  title={`Hapus template username '${tpl}'`}
+                                >
+                                  ×
+                                </button>
+                              </div>
+                            ))}
+
+                            <button
+                              type="button"
+                              onClick={handleAddUserTemplate}
+                              className="px-2 py-0.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded text-[10px] font-bold flex items-center space-x-0.5"
+                              title="Tambah Template Username Baru"
+                            >
+                              <Plus className="w-3 h-3" />
+                              <span>Tambah</span>
+                            </button>
                           </div>
                         </div>
                         <input
                           type="text"
                           value={editForm.login_user}
                           onChange={(e) => setEditForm({ ...editForm, login_user: e.target.value })}
+                          placeholder="Kosongkan atau pilih template di atas"
                           className="w-full p-2 bg-white border border-slate-300 rounded-xl text-slate-900 focus:ring-2 focus:ring-indigo-600 focus:outline-none"
                         />
                       </div>
 
-                      {/* Password Login Input + Preset Template Buttons */}
+                      {/* Password Login Input + Dynamic Preset Template Chips (Add & Remove) */}
                       <div>
-                        <div className="flex items-center justify-between mb-1">
+                        <div className="flex flex-wrap items-center justify-between gap-1 mb-1">
                           <label className="block text-slate-700 font-bold">Password Login (RAW)</label>
                           <div className="flex flex-wrap items-center gap-1">
-                            <button
-                              type="button"
-                              onClick={() => setEditForm((prev) => ({ ...prev, login_password: 'admin' }))}
-                              className="px-2 py-0.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 rounded text-[10px] font-bold"
-                            >
-                              admin
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setEditForm((prev) => ({ ...prev, login_password: 'Password123!' }))}
-                              className="px-2 py-0.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 rounded text-[10px] font-bold"
-                            >
-                              Password123!
-                            </button>
-                            {savedPassTemplate && (
-                              <button
-                                type="button"
-                                onClick={() => setEditForm((prev) => ({ ...prev, login_password: savedPassTemplate }))}
-                                className="px-2 py-0.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded text-[10px] font-bold truncate max-w-[100px]"
-                                title={`Default Tersimpan: ${savedPassTemplate}`}
+                            {passTemplates.map((tpl) => (
+                              <div
+                                key={tpl}
+                                className="inline-flex items-center space-x-1 px-2 py-0.5 bg-amber-50 text-amber-900 border border-amber-200 rounded text-[10px] font-bold max-w-[150px] truncate"
                               >
-                                ⭐ {savedPassTemplate}
-                              </button>
-                            )}
+                                <button
+                                  type="button"
+                                  onClick={() => setEditForm((prev) => ({ ...prev, login_password: tpl }))}
+                                  className="hover:underline font-mono truncate"
+                                  title={tpl}
+                                >
+                                  {tpl}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleRemovePassTemplate(tpl, e)}
+                                  className="text-amber-500 hover:text-rose-600 ml-0.5 shrink-0"
+                                  title={`Hapus template password '${tpl}'`}
+                                >
+                                  ×
+                                </button>
+                              </div>
+                            ))}
+
+                            <button
+                              type="button"
+                              onClick={handleAddPassTemplate}
+                              className="px-2 py-0.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded text-[10px] font-bold flex items-center space-x-0.5"
+                              title="Tambah Template Password Baru"
+                            >
+                              <Plus className="w-3 h-3" />
+                              <span>Tambah</span>
+                            </button>
                           </div>
                         </div>
                         <input
                           type="text"
                           value={editForm.login_password}
                           onChange={(e) => setEditForm({ ...editForm, login_password: e.target.value })}
+                          placeholder="Kosongkan atau pilih template di atas"
                           className="w-full p-2 bg-white border border-slate-300 rounded-xl text-slate-900 font-mono focus:ring-2 focus:ring-indigo-600 focus:outline-none"
                         />
                       </div>
