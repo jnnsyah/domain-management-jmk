@@ -117,7 +117,7 @@ export async function checkSingleEndpointUrl(urlStr: string): Promise<{ statusCo
 }
 
 /**
- * Checks primary endpoint for a single specific website and updates DB (skipping sold websites)
+ * Checks ONLY Primary Endpoint for a single specific website and updates DB (skipping sold websites)
  */
 export async function checkWebsiteEndpoints(websiteId: string): Promise<CheckResult[]> {
   return await dbRetry(async () => {
@@ -128,12 +128,25 @@ export async function checkWebsiteEndpoints(websiteId: string): Promise<CheckRes
     // Skip sold websites
     if (website.status === 'sold') return [];
 
-    const epList = await db.select().from(endpoints).where(eq(endpoints.website_id, websiteId));
+    // Fetch primary endpoints for this website
+    let epList = await db
+      .select()
+      .from(endpoints)
+      .where(and(eq(endpoints.website_id, websiteId), eq(endpoints.is_primary, true)));
+
+    // Fallback: If no endpoint is explicitly flagged as primary, check the first available endpoint
+    if (epList.length === 0) {
+      const allEps = await db.select().from(endpoints).where(eq(endpoints.website_id, websiteId));
+      if (allEps.length > 0) {
+        epList = [allEps[0]];
+      }
+    }
+
     if (epList.length === 0) return [];
 
     const results: CheckResult[] = [];
 
-    // Prioritize primary endpoint, or fallback to all endpoints for single website check
+    // Process primary endpoint
     for (const ep of epList) {
       const check = await checkSingleEndpointUrl(ep.url);
       const now = new Date();
