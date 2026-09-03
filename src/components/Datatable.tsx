@@ -428,17 +428,24 @@ export const Datatable: React.FC<{ initialPage?: number }> = () => {
     }
   };
 
-  const handleSetPrimaryInline = async (endpointId: string, websiteId: string) => {
+  // Toggle/Set/Unset Primary Endpoint Inline
+  const handleTogglePrimaryInline = async (endpointId: string, websiteId: string, currentIsPrimary: boolean) => {
     try {
-      const res = await fetch(`/api/endpoints/${endpointId}`, { method: 'PUT' });
+      const res = await fetch(`/api/endpoints/${endpointId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_primary: !currentIsPrimary }),
+      });
       const json = await res.json();
       if (res.ok && json.success) {
-        showToast('Endpoint primary diperbarui!', 'success');
+        showToast(json.message || 'Status primary endpoint diperbarui!', 'success');
         fetchRowDetail(websiteId);
         fetchData();
+      } else {
+        showToast(json.error?.message || 'Gagal mengubah status primary.', 'error');
       }
     } catch {
-      showToast('Gagal mengubah primary endpoint.', 'error');
+      showToast('Gagal mengubah status primary endpoint.', 'error');
     }
   };
 
@@ -1347,12 +1354,21 @@ export const Datatable: React.FC<{ initialPage?: number }> = () => {
 
                           {activeDetailCache.data.status !== 'sold' && activeDetailCache.data.status !== 'reject' && (
                             <div className="flex items-center space-x-1 shrink-0 ml-1">
-                              {!epItem.is_primary && (
+                              {epItem.is_primary ? (
                                 <button
-                                  onClick={() => handleSetPrimaryInline(epItem.id, activeSelectedRow.id)}
-                                  className="px-1.5 py-0.5 bg-slate-100 hover:bg-indigo-50 text-indigo-600 text-[10px] font-bold rounded border border-slate-200"
+                                  onClick={() => handleTogglePrimaryInline(epItem.id, activeSelectedRow.id, true)}
+                                  className="px-1.5 py-0.5 bg-indigo-50 hover:bg-rose-50 text-indigo-700 hover:text-rose-700 text-[10px] font-bold rounded border border-indigo-200 hover:border-rose-200 transition-colors"
+                                  title="Klik untuk lepas status primary (Unset)"
                                 >
-                                  Primary
+                                  Unset Primary
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => handleTogglePrimaryInline(epItem.id, activeSelectedRow.id, false)}
+                                  className="px-1.5 py-0.5 bg-slate-100 hover:bg-indigo-50 text-indigo-600 text-[10px] font-bold rounded border border-slate-200 transition-colors"
+                                  title="Set sebagai Primary Endpoint"
+                                >
+                                  Set Primary
                                 </button>
                               )}
                               <button

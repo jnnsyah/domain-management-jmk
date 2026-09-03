@@ -2,6 +2,7 @@ import type { APIRoute } from 'astro';
 import { db } from '@/db';
 import { websites, endpoints } from '@/db/schema';
 import { eq, and } from 'drizzle-orm';
+import { dbRetry } from '@/lib/db-utils';
 
 export const PUT: APIRoute = async ({ params, request }) => {
   try {
@@ -16,7 +17,7 @@ export const PUT: APIRoute = async ({ params, request }) => {
       );
     }
 
-    const existingList = await db.select().from(endpoints).where(eq(endpoints.id, id));
+    const existingList = await dbRetry(() => db.select().from(endpoints).where(eq(endpoints.id, id)));
     if (existingList.length === 0) {
       return new Response(
         JSON.stringify({
@@ -28,29 +29,53 @@ export const PUT: APIRoute = async ({ params, request }) => {
     }
 
     const targetEp = existingList[0];
+    const body = await request.json().catch(() => ({}));
 
-    // Set all endpoints for this website to is_primary = false
-    await db
-      .update(endpoints)
-      .set({ is_primary: false })
-      .where(eq(endpoints.website_id, targetEp.website_id));
+    // Determine target primary state: toggle if not explicitly provided in body
+    const nextPrimaryState = typeof body.is_primary === 'boolean' ? body.is_primary : !targetEp.is_primary;
 
-    // Set target endpoint as primary
-    await db
-      .update(endpoints)
-      .set({ is_primary: true })
-      .where(eq(endpoints.id, id));
+    if (nextPrimaryState) {
+      // Set all endpoints for this website to is_primary = false first
+      await dbRetry(() =>
+        db
+          .update(endpoints)
+          .set({ is_primary: false })
+          .where(eq(endpoints.website_id, targetEp.website_id))
+      );
+
+      // Set target endpoint as primary
+      await dbRetry(() =>
+        db
+          .update(endpoints)
+          .set({ is_primary: true })
+          .where(eq(endpoints.id, id))
+      );
+    } else {
+      // Unset primary for target endpoint
+      await dbRetry(() =>
+        db
+          .update(endpoints)
+          .set({ is_primary: false })
+          .where(eq(endpoints.id, id))
+      );
+    }
 
     return new Response(
-      JSON.stringify({ success: true, message: 'Endpoint berhasil dijadikan primary.' }),
+      JSON.stringify({
+        success: true,
+        is_primary: nextPrimaryState,
+        message: nextPrimaryState
+          ? 'Endpoint berhasil dijadikan primary.'
+          : 'Status primary endpoint berhasil dilepas (unset).',
+      }),
       { status: 200, headers: { 'Content-Type': 'application/json' } }
     );
   } catch (err) {
-    console.error('Set primary endpoint error:', err);
+    console.error('Toggle primary endpoint error:', err);
     return new Response(
       JSON.stringify({
         success: false,
-        error: { code: 'SERVER_ERROR', message: 'Gagal mengubah endpoint primary.' },
+        error: { code: 'SERVER_ERROR', message: 'Gagal mengubah status primary endpoint.' },
       }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }
     );
@@ -70,7 +95,7 @@ export const DELETE: APIRoute = async ({ params }) => {
       );
     }
 
-    const existingList = await db.select().from(endpoints).where(eq(endpoints.id, id));
+    const existingList = await dbRetry(() => db.select().from(endpoints).where(eq(endpoints.id, id)));
     if (existingList.length === 0) {
       return new Response(
         JSON.stringify({
@@ -86,16 +111,18 @@ export const DELETE: APIRoute = async ({ params }) => {
     const wasPrimary = targetEp.is_primary;
 
     // Delete endpoint
-    await db.delete(endpoints).where(eq(endpoints.id, id));
+    await dbRetry(() => db.delete(endpoints).where(eq(endpoints.id, id)));
 
     // If deleted endpoint was primary, assign primary flag to another endpoint if available
     if (wasPrimary) {
-      const remainingList = await db.select().from(endpoints).where(eq(endpoints.website_id, websiteId));
+      const remainingList = await dbRetry(() => db.select().from(endpoints).where(eq(endpoints.website_id, websiteId)));
       if (remainingList.length > 0) {
-        await db
-          .update(endpoints)
-          .set({ is_primary: true })
-          .where(eq(endpoints.id, remainingList[0].id));
+        await dbRetry(() =>
+          db
+            .update(endpoints)
+            .set({ is_primary: true })
+            .where(eq(endpoints.id, remainingList[0].id))
+        );
       }
     }
 
