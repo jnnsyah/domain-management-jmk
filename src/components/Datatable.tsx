@@ -1298,7 +1298,7 @@ export const Datatable: React.FC<{ initialPage?: number }> = () => {
                                     await fetchData();
                                     // Re-fetch detail for current row
                                     if (selectedRowId) {
-                                      await fetchDetail(selectedRowId);
+                                      await fetchRowDetail(selectedRowId);
                                     }
                                   } else {
                                     showToast(json.error?.message || 'Failed to fetch domain age.', 'error');
