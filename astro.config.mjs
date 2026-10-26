@@ -17,4 +17,7 @@ export default defineConfig({
     }),
     react(),
   ],
+  security: {
+    checkOrigin: false, // Disable Astro built-in CSRF (using custom middleware instead)
+  },
 });
