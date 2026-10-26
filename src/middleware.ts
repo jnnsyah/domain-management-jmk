@@ -66,6 +66,8 @@ export const onRequest = defineMiddleware(async (context, next) => {
     const referer = request.headers.get('referer');
     const host = request.headers.get('host');
 
+    console.log('[CSRF]', method, path, '| origin:', origin, '| referer:', referer, '| host:', host);
+
     // Skip CSRF if both origin and referer are missing (same-origin fetch often has no origin)
     if (origin || referer) {
       const targetHeader = (origin && origin !== 'null') ? origin : referer || '';
@@ -74,13 +76,16 @@ export const onRequest = defineMiddleware(async (context, next) => {
       if (targetHeader && targetHeader !== 'null') {
         try {
           const headerHost = new URL(targetHeader).host;
+          console.log('[CSRF] Parsed host from header:', headerHost, '| Request host:', host);
+          
           if (host && headerHost !== host) {
+            console.error('[CSRF] MISMATCH - headerHost:', headerHost, 'host:', host);
             return new Response(
               JSON.stringify({
                 success: false,
                 error: {
                   code: 'FORBIDDEN',
-                  message: 'CSRF validation failed: Origin/Referer does not match Host.',
+                  message: `CSRF validation failed: ${headerHost} ≠ ${host}`,
                 },
               }),
               { status: 403, headers: { 'Content-Type': 'application/json' } }
