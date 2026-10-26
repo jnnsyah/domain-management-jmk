@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShoppingCart, FileText, X, Globe, Link, ExternalLink, XCircle } from 'lucide-react';
+import { ShoppingCart, FileText, X, Globe, Link, ExternalLink, XCircle, ShieldOff } from 'lucide-react';
 
 interface MultiSelectFloatingBarProps {
   selectedCount: number;
@@ -10,6 +10,7 @@ interface MultiSelectFloatingBarProps {
   onCopySelectedUrls: () => void;
   onCopySelectedEndpoints: () => void;
   onRejectSelected?: () => void;
+  onLostAccessSelected?: () => void;
 }
 
 export const MultiSelectFloatingBar: React.FC<MultiSelectFloatingBarProps> = ({
@@ -21,6 +22,7 @@ export const MultiSelectFloatingBar: React.FC<MultiSelectFloatingBarProps> = ({
   onCopySelectedUrls,
   onCopySelectedEndpoints,
   onRejectSelected,
+  onLostAccessSelected,
 }) => {
   if (selectedCount === 0) return null;
 
@@ -45,7 +47,7 @@ export const MultiSelectFloatingBar: React.FC<MultiSelectFloatingBarProps> = ({
           </button>
         </div>
 
-        {/* Action Buttons: Copy Domain, Copy URL (https://), Copy Endpoint, Reject, Handover, Catat Penjualan */}
+        {/* Action Buttons: Copy Domain, Copy URL (https://), Copy Endpoint, Reject, Lost Access, Handover, Catat Penjualan */}
         <div className="flex items-center space-x-1.5 sm:space-x-2 flex-wrap">
           <button
             onClick={onCopySelectedDomains}
@@ -90,6 +92,17 @@ export const MultiSelectFloatingBar: React.FC<MultiSelectFloatingBarProps> = ({
             >
               <XCircle className="w-3.5 h-3.5" />
               <span>Mark as Reject</span>
+            </button>
+          )}
+
+          {onLostAccessSelected && (
+            <button
+              onClick={onLostAccessSelected}
+              className="px-3 py-1.5 bg-slate-600 hover:bg-slate-500 active:bg-slate-700 text-white text-xs font-bold rounded-xl transition-all flex items-center space-x-1 shadow-md shadow-slate-600/30"
+              title="Tandai Domain Terpilih sebagai Lost Access"
+            >
+              <ShieldOff className="w-3.5 h-3.5" />
+              <span>Mark as Lost</span>
             </button>
           )}
 

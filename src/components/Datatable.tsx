@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Search, RefreshCw, ExternalLink, Copy, Activity, FileText, ChevronLeft, ChevronRight, Filter, ArrowUpDown, ShieldCheck, Trash2, Plus, Edit2, X, Check, Globe, Bookmark, Sparkles, XCircle } from 'lucide-react';
+import { Search, RefreshCw, ExternalLink, Copy, Activity, FileText, ChevronLeft, ChevronRight, Filter, ArrowUpDown, ShieldCheck, Trash2, Plus, Edit2, X, Check, Globe, Bookmark, Sparkles, XCircle, ShieldOff } from 'lucide-react';
 import { useToast } from './Toast';
 import { HandoverModal } from './HandoverModal';
 import { CheckoutModal } from './CheckoutModal';
@@ -380,6 +380,31 @@ export const Datatable: React.FC<{ initialPage?: number }> = () => {
     }
   };
 
+  // Multi-select bulk status update to LOST ACCESS
+  const handleBulkLostAccess = async () => {
+    const selectedIds = Object.keys(selectedMap);
+    if (selectedIds.length === 0) return;
+    if (!confirm(`Ubah status ${selectedIds.length} domain terpilih menjadi LOST ACCESS?`)) return;
+
+    try {
+      const res = await fetch('/api/websites/bulk-status', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ website_ids: selectedIds, status: 'lost_access' }),
+      });
+      const json = await res.json();
+      if (res.ok && json.success) {
+        showToast(`${selectedIds.length} domain berhasil ditandai sebagai LOST ACCESS.`, 'success');
+        setSelectedMap({});
+        fetchData();
+      } else {
+        showToast(json.error?.message || 'Gagal mengubah status domain.', 'error');
+      }
+    } catch {
+      showToast('Gangguan jaringan saat mengubah status domain.', 'error');
+    }
+  };
+
   // Actions
   const handleLiveCheck = async (websiteId: string, domainName: string) => {
     setLiveCheckingId(websiteId);
@@ -485,6 +510,26 @@ export const Datatable: React.FC<{ initialPage?: number }> = () => {
     }
     setDeleteTarget({ id: websiteId, domain: domainName });
     setDeleteConfirmOpen(true);
+  };
+
+  const handleMarkLostAccess = async (websiteId: string, domainName: string) => {
+    try {
+      const res = await fetch(`/api/websites/${websiteId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'lost_access' }),
+      });
+
+      const json = await res.json();
+      if (res.ok && json.success) {
+        showToast(`Domain '${domainName}' ditandai sebagai Lost Access.`, 'success');
+        fetchData();
+      } else {
+        showToast(json.error?.message || 'Gagal mengubah status.', 'error');
+      }
+    } catch {
+      showToast('Gangguan jaringan.', 'error');
+    }
   };
 
   const confirmDelete = async () => {
@@ -801,6 +846,14 @@ export const Datatable: React.FC<{ initialPage?: number }> = () => {
                               title="Edit Website"
                             >
                               <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+
+                            <button
+                              onClick={() => handleMarkLostAccess(row.id, row.domain)}
+                              className="p-1.5 text-slate-600 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-all"
+                              title="Mark as Lost Access"
+                            >
+                              <ShieldOff className="w-3.5 h-3.5" />
                             </button>
 
                             <button
@@ -1467,7 +1520,7 @@ export const Datatable: React.FC<{ initialPage?: number }> = () => {
 
       </div>
 
-      {/* Floating Multi-Select Bar with Copy Domain, Copy URL (https://), Copy Endpoint, and Mark as Reject Actions */}
+      {/* Floating Multi-Select Bar with Copy Domain, Copy URL (https://), Copy Endpoint, Mark as Reject, Mark as Lost Access Actions */}
       <MultiSelectFloatingBar
         selectedCount={selectedList.length}
         onClearSelection={() => setSelectedMap({})}
@@ -1480,6 +1533,7 @@ export const Datatable: React.FC<{ initialPage?: number }> = () => {
         onCopySelectedUrls={handleCopySelectedUrls}
         onCopySelectedEndpoints={handleCopySelectedEndpoints}
         onRejectSelected={handleBulkReject}
+        onLostAccessSelected={handleBulkLostAccess}
       />
 
       {/* Modals */}

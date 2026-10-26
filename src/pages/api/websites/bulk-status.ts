@@ -19,11 +19,11 @@ export const PUT: APIRoute = async ({ request }) => {
       );
     }
 
-    if (!['active', 'reject'].includes(status)) {
+    if (!['active', 'reject', 'lost_access'].includes(status)) {
       return new Response(
         JSON.stringify({
           success: false,
-          error: { code: 'VALIDATION_ERROR', message: "status harus 'active' atau 'reject'." },
+          error: { code: 'VALIDATION_ERROR', message: "status harus 'active', 'reject', atau 'lost_access'." },
         }),
         { status: 400, headers: { 'Content-Type': 'application/json' } }
       );
