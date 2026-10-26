@@ -109,6 +109,10 @@ export const GET: APIRoute = async ({ url }) => {
         login_user: w.login_user,
         has_gsocket_root: Boolean(w.gsocket_root),
         status: w.status,
+        domain_age_days: w.domain_age_days,
+        created_date: w.created_date,
+        expiry_date: w.expiry_date,
+        last_age_check: w.last_age_check,
         primary_endpoint: primaryEp
           ? {
               id: primaryEp.id,
