@@ -473,6 +473,15 @@ export const Datatable: React.FC<{ initialPage?: number }> = () => {
 
     try {
       const res = await fetch(`/api/websites/${websiteId}`, { method: 'DELETE' });
+      
+      // Handle non-JSON response (middleware block, proxy error, etc)
+      const contentType = res.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        console.error('[Delete] Non-JSON response:', res.status, await res.text());
+        showToast(`Gagal menghapus website (HTTP ${res.status}).`, 'error');
+        return;
+      }
+      
       const json = await res.json();
       if (res.ok && json.success) {
         showToast(`Website '${domainName}' telah dihapus.`, 'success');
@@ -481,8 +490,9 @@ export const Datatable: React.FC<{ initialPage?: number }> = () => {
       } else {
         showToast(json.error?.message || 'Gagal menghapus website.', 'error');
       }
-    } catch {
-      showToast('Gangguan jaringan.', 'error');
+    } catch (err) {
+      console.error('[Delete] Network or parse error:', err);
+      showToast('Gangguan jaringan atau respons tidak valid.', 'error');
     }
   };
 

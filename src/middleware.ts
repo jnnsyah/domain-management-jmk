@@ -66,33 +66,39 @@ export const onRequest = defineMiddleware(async (context, next) => {
     const referer = request.headers.get('referer');
     const host = request.headers.get('host');
 
+    // Skip CSRF if both origin and referer are missing (same-origin fetch often has no origin)
     if (origin || referer) {
-      const targetHeader = origin || referer || '';
-      try {
-        const headerHost = new URL(targetHeader).host;
-        if (host && headerHost !== host) {
+      const targetHeader = (origin && origin !== 'null') ? origin : referer || '';
+      
+      // Skip check if header is still empty or "null" string
+      if (targetHeader && targetHeader !== 'null') {
+        try {
+          const headerHost = new URL(targetHeader).host;
+          if (host && headerHost !== host) {
+            return new Response(
+              JSON.stringify({
+                success: false,
+                error: {
+                  code: 'FORBIDDEN',
+                  message: 'CSRF validation failed: Origin/Referer does not match Host.',
+                },
+              }),
+              { status: 403, headers: { 'Content-Type': 'application/json' } }
+            );
+          }
+        } catch (err) {
+          console.error('[CSRF] Invalid origin/referer header:', targetHeader, err);
           return new Response(
             JSON.stringify({
               success: false,
               error: {
                 code: 'FORBIDDEN',
-                message: 'CSRF validation failed: Origin/Referer does not match Host.',
+                message: 'CSRF validation failed: Invalid origin header.',
               },
             }),
             { status: 403, headers: { 'Content-Type': 'application/json' } }
           );
         }
-      } catch {
-        return new Response(
-          JSON.stringify({
-            success: false,
-            error: {
-              code: 'FORBIDDEN',
-              message: 'CSRF validation failed: Invalid origin header.',
-            },
-          }),
-          { status: 403, headers: { 'Content-Type': 'application/json' } }
-        );
       }
     }
   }
