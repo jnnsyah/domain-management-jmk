@@ -7,6 +7,7 @@ import { IngestionModal } from './IngestionModal';
 import { MultiSelectFloatingBar } from './MultiSelectFloatingBar';
 import { CustomSelect, type SelectOption } from './CustomSelect';
 import { StatsCards } from './StatsCards';
+import { ConfirmModal } from './ConfirmModal';
 
 const endpointStatusOptions: SelectOption[] = [
   { value: 'all', label: 'Endpoint: Semua' },
@@ -151,6 +152,10 @@ export const Datatable: React.FC<{ initialPage?: number }> = () => {
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [isHandoverOpen, setIsHandoverOpen] = useState(false);
   const [handoverDomains, setHandoverDomains] = useState<{ id: string; domain: string }[]>([]);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; domain: string } | null>(null);
+  const [deleteEndpointOpen, setDeleteEndpointOpen] = useState(false);
+  const [deleteEndpointTarget, setDeleteEndpointTarget] = useState<{ endpointId: string; websiteId: string } | null>(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -450,17 +455,26 @@ export const Datatable: React.FC<{ initialPage?: number }> = () => {
   };
 
   const handleDeleteEndpointInline = async (endpointId: string, websiteId: string) => {
-    if (!confirm('Apakah Anda yakin ingin menghapus endpoint ini?')) return;
+    setDeleteEndpointTarget({ endpointId, websiteId });
+    setDeleteEndpointOpen(true);
+  };
+
+  const confirmDeleteEndpoint = async () => {
+    if (!deleteEndpointTarget) return;
+
     try {
-      const res = await fetch(`/api/endpoints/${endpointId}`, { method: 'DELETE' });
+      const res = await fetch(`/api/endpoints/${deleteEndpointTarget.endpointId}`, { method: 'DELETE' });
       const json = await res.json();
       if (res.ok && json.success) {
         showToast('Endpoint berhasil dihapus!', 'success');
-        fetchRowDetail(websiteId);
+        fetchRowDetail(deleteEndpointTarget.websiteId);
         fetchData();
       }
     } catch {
       showToast('Gagal menghapus endpoint.', 'error');
+    } finally {
+      setDeleteEndpointOpen(false);
+      setDeleteEndpointTarget(null);
     }
   };
 
@@ -469,10 +483,15 @@ export const Datatable: React.FC<{ initialPage?: number }> = () => {
       showToast('Domain yang sudah terjual dilarang dihapus!', 'error');
       return;
     }
-    if (!confirm(`Hapus domain ${domainName} beserta seluruh endpoint-nya?`)) return;
+    setDeleteTarget({ id: websiteId, domain: domainName });
+    setDeleteConfirmOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
 
     try {
-      const res = await fetch(`/api/websites/${websiteId}`, { method: 'DELETE' });
+      const res = await fetch(`/api/websites/${deleteTarget.id}`, { method: 'DELETE' });
       
       // Handle non-JSON response (middleware block, proxy error, etc)
       const contentType = res.headers.get('content-type');
@@ -484,8 +503,8 @@ export const Datatable: React.FC<{ initialPage?: number }> = () => {
       
       const json = await res.json();
       if (res.ok && json.success) {
-        showToast(`Website '${domainName}' telah dihapus.`, 'success');
-        if (selectedRowId === websiteId) setSelectedRowId(null);
+        showToast(`Website '${deleteTarget.domain}' telah dihapus.`, 'success');
+        if (selectedRowId === deleteTarget.id) setSelectedRowId(null);
         fetchData();
       } else {
         showToast(json.error?.message || 'Gagal menghapus website.', 'error');
@@ -493,6 +512,9 @@ export const Datatable: React.FC<{ initialPage?: number }> = () => {
     } catch (err) {
       console.error('[Delete] Network or parse error:', err);
       showToast('Gangguan jaringan atau respons tidak valid.', 'error');
+    } finally {
+      setDeleteConfirmOpen(false);
+      setDeleteTarget(null);
     }
   };
 
@@ -1450,6 +1472,34 @@ export const Datatable: React.FC<{ initialPage?: number }> = () => {
         onSuccess={() => {
           setSelectedMap({});
           fetchData();
+        }}
+      />
+
+      <ConfirmModal
+        isOpen={deleteConfirmOpen}
+        title="Konfirmasi Hapus Domain"
+        message={`Yakin hapus domain "${deleteTarget?.domain}" beserta seluruh endpoint-nya? Aksi ini tidak dapat dibatalkan.`}
+        confirmText="Ya, Hapus"
+        cancelText="Batal"
+        variant="danger"
+        onConfirm={confirmDelete}
+        onCancel={() => {
+          setDeleteConfirmOpen(false);
+          setDeleteTarget(null);
+        }}
+      />
+
+      <ConfirmModal
+        isOpen={deleteEndpointOpen}
+        title="Konfirmasi Hapus Endpoint"
+        message="Yakin hapus endpoint ini? Data endpoint akan dihapus permanen."
+        confirmText="Ya, Hapus"
+        cancelText="Batal"
+        variant="danger"
+        onConfirm={confirmDeleteEndpoint}
+        onCancel={() => {
+          setDeleteEndpointOpen(false);
+          setDeleteEndpointTarget(null);
         }}
       />
     </div>
