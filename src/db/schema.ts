@@ -1,5 +1,7 @@
-import { pgTable, uuid, varchar, text, boolean, integer, numeric, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, text, boolean, integer, numeric, timestamp, uniqueIndex, pgEnum } from 'drizzle-orm/pg-core';
 import type { InferSelectModel, InferInsertModel } from 'drizzle-orm';
+
+export const websiteStatusEnum = pgEnum('website_status', ['active', 'sold', 'reject', 'lost_access']);
 
 export const websites = pgTable('websites', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -11,7 +13,7 @@ export const websites = pgTable('websites', {
   login_password: text('login_password'), // Encrypted AES-256-GCM
   gsocket_user: text('gsocket_user'),     // Encrypted AES-256-GCM
   gsocket_root: text('gsocket_root'),     // Encrypted AES-256-GCM
-  status: varchar('status', { length: 20 }).default('active').notNull(),
+  status: websiteStatusEnum('status').default('active').notNull(),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 });

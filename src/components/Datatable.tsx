@@ -32,7 +32,7 @@ export const Datatable: React.FC<{ initialPage?: number }> = () => {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const [search, setSearch] = useState('');
-  const [status, setStatus] = useState('all'); // 'all' | 'active' | 'sold' | 'reject'
+  const [status, setStatus] = useState('all'); // 'all' | 'active' | 'sold' | 'reject' | 'lost_access'
   const [endpointStatus, setEndpointStatus] = useState('all');
   const [sortKey, setSortKey] = useState('created_at_desc');
 
@@ -119,7 +119,7 @@ export const Datatable: React.FC<{ initialPage?: number }> = () => {
   };
 
   // Stats & Data state
-  const [stats, setStats] = useState({ total: 0, active: 0, sold: 0, reject: 0, primary_off: 0 });
+  const [stats, setStats] = useState({ total: 0, active: 0, sold: 0, reject: 0, lost_access: 0, primary_off: 0 });
   const [items, setItems] = useState<any[]>([]);
   const [pagination, setPagination] = useState({ page: 1, limit: 10, total_items: 0, total_pages: 1 });
   const [loading, setLoading] = useState(false);
@@ -556,7 +556,7 @@ export const Datatable: React.FC<{ initialPage?: number }> = () => {
 
           <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             
-            {/* Status Filter Segmented Pill Buttons (Semua | Active | Sold | Reject) */}
+            {/* Status Filter Segmented Pill Buttons (Semua | Active | Sold | Reject | Lost Access) */}
             <div className="bg-slate-100 p-1 rounded-xl border border-slate-200 flex items-center space-x-1">
               <button
                 type="button"
@@ -616,6 +616,21 @@ export const Datatable: React.FC<{ initialPage?: number }> = () => {
                 }`}
               >
                 Reject
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setStatus('lost_access');
+                  setPage(1);
+                }}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  status === 'lost_access'
+                    ? 'bg-slate-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Lost Access
               </button>
             </div>
 
@@ -731,10 +746,12 @@ export const Datatable: React.FC<{ initialPage?: number }> = () => {
                                   ? 'bg-amber-100 text-amber-800 border border-amber-200'
                                   : row.status === 'reject'
                                   ? 'bg-rose-100 text-rose-800 border border-rose-200'
+                                  : row.status === 'lost_access'
+                                  ? 'bg-slate-100 text-slate-800 border border-slate-300'
                                   : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
                               }`}
                             >
-                              {row.status ? row.status.toUpperCase() : 'ACTIVE'}
+                              {row.status ? row.status.toUpperCase().replace('_', ' ') : 'ACTIVE'}
                             </span>
 
                             {/* Red ROOT Badge Label */}
@@ -853,10 +870,12 @@ export const Datatable: React.FC<{ initialPage?: number }> = () => {
                             ? 'bg-amber-100 text-amber-800'
                             : activeSelectedRow.status === 'reject'
                             ? 'bg-rose-100 text-rose-800 border border-rose-200'
+                            : activeSelectedRow.status === 'lost_access'
+                            ? 'bg-slate-100 text-slate-800 border border-slate-300'
                             : 'bg-emerald-100 text-emerald-800'
                         }`}
                       >
-                        {activeSelectedRow.status.toUpperCase()}
+                        {activeSelectedRow.status.toUpperCase().replace('_', ' ')}
                       </span>
 
                       {/* Red ROOT Badge Label in Detail Pane */}
@@ -947,7 +966,7 @@ export const Datatable: React.FC<{ initialPage?: number }> = () => {
                         </div>
                       </div>
 
-                      {/* Status Selector (Active vs Reject) */}
+                      {/* Status Selector (Active vs Reject vs Lost Access) */}
                       <div>
                         <label className="block text-slate-700 font-bold mb-1">Status Domain</label>
                         <div className="flex items-center space-x-2">
@@ -972,6 +991,17 @@ export const Datatable: React.FC<{ initialPage?: number }> = () => {
                             }`}
                           >
                             Reject
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setEditForm((prev) => ({ ...prev, status: 'lost_access' }))}
+                            className={`flex-1 py-1.5 px-3 rounded-xl font-bold border transition-all ${
+                              editForm.status === 'lost_access'
+                                ? 'bg-slate-600 text-white border-slate-600 shadow-xs'
+                                : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
+                            }`}
+                          >
+                            Lost Access
                           </button>
                         </div>
                       </div>

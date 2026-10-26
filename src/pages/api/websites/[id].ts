@@ -116,7 +116,7 @@ export const PUT: APIRoute = async ({ params, request }) => {
       updated_at: new Date(),
     };
 
-    if (status !== undefined && ['active', 'reject'].includes(status)) {
+    if (status !== undefined && ['active', 'reject', 'lost_access'].includes(status)) {
       updatePayload.status = status;
     }
     if (login_url !== undefined) updatePayload.login_url = login_url ? login_url.trim() : null;
