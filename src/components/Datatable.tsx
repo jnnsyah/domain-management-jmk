@@ -156,6 +156,8 @@ export const Datatable: React.FC<{ initialPage?: number }> = () => {
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; domain: string } | null>(null);
   const [deleteEndpointOpen, setDeleteEndpointOpen] = useState(false);
   const [deleteEndpointTarget, setDeleteEndpointTarget] = useState<{ endpointId: string; websiteId: string } | null>(null);
+  const [lostAccessConfirmOpen, setLostAccessConfirmOpen] = useState(false);
+  const [lostAccessTarget, setLostAccessTarget] = useState<{ id: string; domain: string; isRestore: boolean } | null>(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -384,17 +386,25 @@ export const Datatable: React.FC<{ initialPage?: number }> = () => {
   const handleBulkLostAccess = async () => {
     const selectedIds = Object.keys(selectedMap);
     if (selectedIds.length === 0) return;
-    if (!confirm(`Ubah status ${selectedIds.length} domain terpilih menjadi LOST ACCESS?`)) return;
+    
+    // Check if all selected are already lost_access (restore mode)
+    const selectedDomains = items.filter(it => selectedIds.includes(it.id));
+    const allAreLost = selectedDomains.every(d => d.status === 'lost_access');
+    
+    const targetStatus = allAreLost ? 'active' : 'lost_access';
+    const actionText = allAreLost ? 'ACTIVE' : 'LOST ACCESS';
+    
+    if (!confirm(`Ubah status ${selectedIds.length} domain terpilih menjadi ${actionText}?`)) return;
 
     try {
       const res = await fetch('/api/websites/bulk-status', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ website_ids: selectedIds, status: 'lost_access' }),
+        body: JSON.stringify({ website_ids: selectedIds, status: targetStatus }),
       });
       const json = await res.json();
       if (res.ok && json.success) {
-        showToast(`${selectedIds.length} domain berhasil ditandai sebagai LOST ACCESS.`, 'success');
+        showToast(`${selectedIds.length} domain berhasil ditandai sebagai ${actionText}.`, 'success');
         setSelectedMap({});
         fetchData();
       } else {
@@ -512,23 +522,37 @@ export const Datatable: React.FC<{ initialPage?: number }> = () => {
     setDeleteConfirmOpen(true);
   };
 
-  const handleMarkLostAccess = async (websiteId: string, domainName: string) => {
+  const handleMarkLostAccess = async (websiteId: string, domainName: string, currentStatus: string) => {
+    const isRestore = currentStatus === 'lost_access';
+    setLostAccessTarget({ id: websiteId, domain: domainName, isRestore });
+    setLostAccessConfirmOpen(true);
+  };
+
+  const confirmMarkLostAccess = async () => {
+    if (!lostAccessTarget) return;
+
+    const targetStatus = lostAccessTarget.isRestore ? 'active' : 'lost_access';
+    const actionText = lostAccessTarget.isRestore ? 'dikembalikan ke Active' : 'ditandai sebagai Lost Access';
+
     try {
-      const res = await fetch(`/api/websites/${websiteId}`, {
+      const res = await fetch(`/api/websites/${lostAccessTarget.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'lost_access' }),
+        body: JSON.stringify({ status: targetStatus }),
       });
 
       const json = await res.json();
       if (res.ok && json.success) {
-        showToast(`Domain '${domainName}' ditandai sebagai Lost Access.`, 'success');
+        showToast(`Domain '${lostAccessTarget.domain}' ${actionText}.`, 'success');
         fetchData();
       } else {
         showToast(json.error?.message || 'Gagal mengubah status.', 'error');
       }
     } catch {
       showToast('Gangguan jaringan.', 'error');
+    } finally {
+      setLostAccessConfirmOpen(false);
+      setLostAccessTarget(null);
     }
   };
 
@@ -849,11 +873,19 @@ export const Datatable: React.FC<{ initialPage?: number }> = () => {
                             </button>
 
                             <button
-                              onClick={() => handleMarkLostAccess(row.id, row.domain)}
-                              className="p-1.5 text-slate-600 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-all"
-                              title="Mark as Lost Access"
+                              onClick={() => handleMarkLostAccess(row.id, row.domain, row.status)}
+                              className={`p-1.5 rounded-xl transition-all ${
+                                row.status === 'lost_access'
+                                  ? 'text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50'
+                                  : 'text-slate-600 hover:text-slate-700 hover:bg-slate-100'
+                              }`}
+                              title={row.status === 'lost_access' ? 'Restore to Active' : 'Mark as Lost Access'}
                             >
-                              <ShieldOff className="w-3.5 h-3.5" />
+                              {row.status === 'lost_access' ? (
+                                <ShieldCheck className="w-3.5 h-3.5" />
+                              ) : (
+                                <ShieldOff className="w-3.5 h-3.5" />
+                              )}
                             </button>
 
                             <button
@@ -1584,6 +1616,24 @@ export const Datatable: React.FC<{ initialPage?: number }> = () => {
         onCancel={() => {
           setDeleteEndpointOpen(false);
           setDeleteEndpointTarget(null);
+        }}
+      />
+
+      <ConfirmModal
+        isOpen={lostAccessConfirmOpen}
+        title={lostAccessTarget?.isRestore ? 'Konfirmasi Restore Domain' : 'Konfirmasi Lost Access'}
+        message={
+          lostAccessTarget?.isRestore
+            ? `Kembalikan domain "${lostAccessTarget.domain}" ke status Active?`
+            : `Tandai domain "${lostAccessTarget?.domain}" sebagai Lost Access? Domain masih bisa di-restore nanti.`
+        }
+        confirmText={lostAccessTarget?.isRestore ? 'Ya, Restore' : 'Ya, Tandai Lost'}
+        cancelText="Batal"
+        variant={lostAccessTarget?.isRestore ? 'info' : 'warning'}
+        onConfirm={confirmMarkLostAccess}
+        onCancel={() => {
+          setLostAccessConfirmOpen(false);
+          setLostAccessTarget(null);
         }}
       />
     </div>
