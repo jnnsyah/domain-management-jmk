@@ -43,7 +43,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
   const sessionToken = cookies.get('session_token')?.value;
   const isAuthenticated = verifySessionToken(sessionToken);
 
-  console.log('[AUTH]', method, path, '| has token:', !!sessionToken, '| authenticated:', isAuthenticated);
+  console.log('[AUTH]', request.method, path, '| has token:', !!sessionToken, '| authenticated:', isAuthenticated);
 
   if (!isAuthenticated) {
     if (path.startsWith('/api/')) {
