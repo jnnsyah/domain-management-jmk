@@ -1,8 +1,23 @@
 import { defineMiddleware } from 'astro:middleware';
 import { verifySessionToken } from '@/lib/auth';
+import { checkApiReadLimit, checkApiWriteLimit, getRateLimitHeaders } from '@/lib/rate-limiter';
 import * as dotenv from 'dotenv';
 
 dotenv.config();
+
+function getClientIp(request: Request): string {
+  // Vercel sets x-forwarded-for, x-real-ip
+  const forwarded = request.headers.get('x-forwarded-for');
+  if (forwarded) {
+    return forwarded.split(',')[0].trim();
+  }
+  const realIp = request.headers.get('x-real-ip');
+  if (realIp) {
+    return realIp;
+  }
+  // Fallback to unknown (shouldn't happen on Vercel)
+  return 'unknown';
+}
 
 export const onRequest = defineMiddleware(async (context, next) => {
   const { url, request, cookies, redirect } = context;
@@ -62,7 +77,43 @@ export const onRequest = defineMiddleware(async (context, next) => {
     return redirect('/login');
   }
 
-  // 4. CSRF Protection for state-changing requests (POST, PUT, DELETE)
+  // 4. Rate Limiting for API routes (after authentication)
+  if (path.startsWith('/api/') && !path.startsWith('/api/cron/') && path !== '/api/auth/login') {
+    const clientIp = getClientIp(request);
+    const method = request.method.toUpperCase();
+    
+    const isReadOperation = method === 'GET';
+    const isWriteOperation = ['POST', 'PUT', 'DELETE'].includes(method);
+    
+    if (isReadOperation || isWriteOperation) {
+      const limitCheck = isReadOperation 
+        ? checkApiReadLimit(clientIp) 
+        : checkApiWriteLimit(clientIp);
+      
+      const headers = {
+        'Content-Type': 'application/json',
+        ...getRateLimitHeaders(limitCheck.remaining, limitCheck.resetTime),
+      };
+      
+      if (!limitCheck.allowed) {
+        console.warn(`[RATE_LIMIT] ${clientIp} exceeded ${isReadOperation ? 'READ' : 'WRITE'} limit on ${path}`);
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: {
+              code: 'RATE_LIMIT_EXCEEDED',
+              message: 'Terlalu banyak request. Coba lagi nanti.',
+            },
+          }),
+          { status: 429, headers }
+        );
+      }
+      
+      console.log(`[RATE_LIMIT] ${clientIp} ${method} ${path} | remaining: ${limitCheck.remaining}`);
+    }
+  }
+
+  // 5. CSRF Protection for state-changing requests (POST, PUT, DELETE)
   const method = request.method.toUpperCase();
   if (['POST', 'PUT'].includes(method)) {
     const origin = request.headers.get('origin');
