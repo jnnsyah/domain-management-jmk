@@ -829,6 +829,28 @@ export const Datatable: React.FC<{ initialPage?: number }> = () => {
                                 ROOT
                               </span>
                             )}
+
+                            {/* Domain Age Badge */}
+                            {row.domain_age_days !== null && row.domain_age_days !== undefined && (
+                              <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-bold border ${
+                                row.domain_age_days < 30 
+                                  ? 'bg-amber-100 text-amber-800 border-amber-300' :
+                                row.domain_age_days < 365 
+                                  ? 'bg-blue-100 text-blue-800 border-blue-300' :
+                                row.domain_age_days > 1825 
+                                  ? 'bg-emerald-100 text-emerald-800 border-emerald-300' :
+                                'bg-slate-100 text-slate-700 border-slate-300'
+                              }`}>
+                                {(() => {
+                                  const days = row.domain_age_days;
+                                  const years = Math.floor(days / 365);
+                                  const months = Math.floor((days % 365) / 30);
+                                  if (years === 0) return months === 0 ? `${days}d` : `${months}mo`;
+                                  if (months === 0) return `${years}y`;
+                                  return `${years}y ${months}m`;
+                                })()}
+                              </span>
+                            )}
                           </div>
                           {row.login_user && (
                             <div className="text-[11px] text-slate-400 mt-0.5">User: {row.login_user}</div>
