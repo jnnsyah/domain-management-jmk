@@ -1293,7 +1293,13 @@ export const Datatable: React.FC<{ initialPage?: number }> = () => {
                                   const json = await res.json();
                                   if (res.ok && json.success) {
                                     showToast('Domain age updated successfully!', 'success');
-                                    fetchData();
+                                    // Clear detail cache and re-fetch
+                                    setDetailCache({});
+                                    await fetchData();
+                                    // Re-fetch detail for current row
+                                    if (selectedRowId) {
+                                      await fetchDetail(selectedRowId);
+                                    }
                                   } else {
                                     showToast(json.error?.message || 'Failed to fetch domain age.', 'error');
                                   }
