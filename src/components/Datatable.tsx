@@ -1375,24 +1375,27 @@ export const Datatable: React.FC<{ initialPage?: number }> = () => {
                           <div className="flex items-center justify-between">
                             <span className="text-slate-500">Domain Age:</span>
                             <div className="flex items-center space-x-1.5">
-                              <span className={`font-semibold text-xs ${
-                                activeDetailCache.data.domain_age_days < 30 ? 'text-amber-700' :
-                                activeDetailCache.data.domain_age_days < 365 ? 'text-blue-700' :
-                                activeDetailCache.data.domain_age_days > 1825 ? 'text-emerald-700' :
-                                'text-slate-700'
+                              <span className={`px-2 py-1 rounded-lg text-xs font-bold border ${
+                                activeDetailCache.data.domain_age_days < 30 
+                                  ? 'bg-amber-100 text-amber-800 border-amber-300' :
+                                activeDetailCache.data.domain_age_days < 365 
+                                  ? 'bg-blue-100 text-blue-800 border-blue-300' :
+                                activeDetailCache.data.domain_age_days > 1825 
+                                  ? 'bg-emerald-100 text-emerald-800 border-emerald-300' :
+                                'bg-slate-100 text-slate-800 border-slate-300'
                               }`}>
                                 {(() => {
                                   const days = activeDetailCache.data.domain_age_days;
                                   const years = Math.floor(days / 365);
                                   const months = Math.floor((days % 365) / 30);
-                                  if (years === 0) return months === 0 ? `${days} days` : `${months}mo`;
+                                  if (years === 0) return months === 0 ? `${days}d` : `${months}mo`;
                                   if (months === 0) return `${years}yr`;
                                   return `${years}yr ${months}mo`;
                                 })()}
                               </span>
                               {activeDetailCache.data.domain_age_days < 30 && (
-                                <span className="px-1.5 py-0.5 bg-amber-100 text-amber-800 text-[9px] font-bold rounded">
-                                  🆕 NEW
+                                <span className="px-1.5 py-0.5 bg-rose-100 text-rose-800 text-[9px] font-bold rounded border border-rose-300">
+                                  ⚠️ NEW
                                 </span>
                               )}
                             </div>
