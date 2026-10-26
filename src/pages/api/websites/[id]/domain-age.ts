@@ -48,9 +48,9 @@ export const POST: APIRoute = async ({ params, request }) => {
     await db
       .update(websites)
       .set({
-        created_date: new Date(result.data.registrationDate),
-        expiry_date: new Date(result.data.expirationDate),
-        domain_age_days: result.data.ageInDays,
+        created_date: new Date(result.data.created),
+        expiry_date: new Date(result.data.expires),
+        domain_age_days: result.data.ageDays,
         last_age_check: new Date(),
         updated_at: new Date(),
       })
@@ -61,10 +61,10 @@ export const POST: APIRoute = async ({ params, request }) => {
         success: true,
         data: {
           domain: result.data.domain,
-          created_date: result.data.registrationDate,
-          expiry_date: result.data.expirationDate,
-          domain_age_days: result.data.ageInDays,
-          domain_age_years: result.data.ageInYears,
+          created_date: result.data.created,
+          expiry_date: result.data.expires,
+          domain_age_days: result.data.ageDays,
+          domain_age_years: result.data.ageYears,
         },
       }),
       { status: 200, headers: { 'Content-Type': 'application/json' } }

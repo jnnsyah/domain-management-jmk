@@ -2,11 +2,11 @@ interface DomainAgeResponse {
   ok: boolean;
   data?: {
     domain: string;
-    registrationDate: string;
-    expirationDate: string;
-    lastUpdatedDate: string;
-    ageInDays: number;
-    ageInYears: number;
+    created: string;
+    expires: string;
+    updated: string;
+    ageDays: number;
+    ageYears: number;
   };
   error?: {
     code: string;
@@ -25,7 +25,6 @@ export async function fetchDomainAge(domain: string): Promise<DomainAgeResponse>
     const response = await fetch(
       `https://api.domainee.dev/v1/tools/domain-age-checker?domain=${encodeURIComponent(cleanDomain)}`,
       {
-        headers: { 'User-Agent': 'Domain-Management-JMK/1.0' },
         signal: AbortSignal.timeout(10000), // 10s timeout
       }
     );
@@ -57,11 +56,11 @@ export async function fetchDomainAge(domain: string): Promise<DomainAgeResponse>
       ok: true,
       data: {
         domain: json.data.domain,
-        registrationDate: json.data.registrationDate,
-        expirationDate: json.data.expirationDate,
-        lastUpdatedDate: json.data.lastUpdatedDate,
-        ageInDays: json.data.ageInDays,
-        ageInYears: json.data.ageInYears,
+        created: json.data.created,
+        expires: json.data.expires,
+        updated: json.data.updated,
+        ageDays: json.data.ageDays,
+        ageYears: json.data.ageYears,
       },
     };
   } catch (error) {
