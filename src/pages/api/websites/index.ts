@@ -40,6 +40,7 @@ export const GET: APIRoute = async ({ url }) => {
       active: allDbWebsites.filter(w => w.status === 'active').length,
       sold: allDbWebsites.filter(w => w.status === 'sold').length,
       reject: allDbWebsites.filter(w => w.status === 'reject').length,
+      lost_access: allDbWebsites.filter(w => w.status === 'lost_access').length,
       primary_off: primaryOffCount,
     };
 
@@ -55,7 +56,7 @@ export const GET: APIRoute = async ({ url }) => {
       );
     }
 
-    if (['active', 'sold', 'reject'].includes(statusFilter)) {
+    if (['active', 'sold', 'reject', 'lost_access'].includes(statusFilter)) {
       filteredWebsites = filteredWebsites.filter(w => w.status === statusFilter);
     }
 
