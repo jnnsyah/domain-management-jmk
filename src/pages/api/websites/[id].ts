@@ -151,6 +151,7 @@ export const PUT: APIRoute = async ({ params, request }) => {
 };
 
 export const DELETE: APIRoute = async ({ params }) => {
+  console.log('[DELETE] Handler reached for website ID:', params.id);
   try {
     const { id } = params;
     if (!id) {
