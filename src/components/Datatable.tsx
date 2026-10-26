@@ -1283,8 +1283,31 @@ export const Datatable: React.FC<{ initialPage?: number }> = () => {
                     <div className="space-y-4 text-xs">
                       {/* Domain, Primary Endpoint & IP Info Card */}
                       <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-2">
-                        <div className="font-bold text-slate-900 text-xs border-b border-slate-200/80 pb-1">
-                          Informasi Umum
+                        <div className="font-bold text-slate-900 text-xs border-b border-slate-200/80 pb-1 flex items-center justify-between">
+                          <span>Informasi Umum</span>
+                          {activeDetailCache?.data?.id && (
+                            <button
+                              onClick={async () => {
+                                try {
+                                  const res = await fetch(`/api/websites/${activeDetailCache.data.id}/domain-age`, { method: 'POST' });
+                                  const json = await res.json();
+                                  if (res.ok && json.success) {
+                                    showToast('Domain age updated successfully!', 'success');
+                                    fetchData();
+                                  } else {
+                                    showToast(json.error?.message || 'Failed to fetch domain age.', 'error');
+                                  }
+                                } catch {
+                                  showToast('Network error fetching domain age.', 'error');
+                                }
+                              }}
+                              className="text-[10px] text-indigo-600 hover:text-indigo-800 font-normal flex items-center space-x-0.5"
+                              title="Refresh Domain Age"
+                            >
+                              <RefreshCw className="w-3 h-3" />
+                              <span>Refresh Age</span>
+                            </button>
+                          )}
                         </div>
 
                         {/* Primary Endpoint Display */}
@@ -1340,6 +1363,35 @@ export const Datatable: React.FC<{ initialPage?: number }> = () => {
                             <Copy className="w-3 h-3 text-slate-400 hover:text-indigo-600" />
                           </button>
                         </div>
+
+                        {/* Domain Age Display */}
+                        {activeDetailCache.data.domain_age_days !== null && activeDetailCache.data.domain_age_days !== undefined ? (
+                          <div className="flex items-center justify-between">
+                            <span className="text-slate-500">Domain Age:</span>
+                            <div className="flex items-center space-x-1.5">
+                              <span className={`font-semibold text-xs ${
+                                activeDetailCache.data.domain_age_days < 30 ? 'text-amber-700' :
+                                activeDetailCache.data.domain_age_days < 365 ? 'text-blue-700' :
+                                activeDetailCache.data.domain_age_days > 1825 ? 'text-emerald-700' :
+                                'text-slate-700'
+                              }`}>
+                                {(() => {
+                                  const days = activeDetailCache.data.domain_age_days;
+                                  const years = Math.floor(days / 365);
+                                  const months = Math.floor((days % 365) / 30);
+                                  if (years === 0) return months === 0 ? `${days} days` : `${months}mo`;
+                                  if (months === 0) return `${years}yr`;
+                                  return `${years}yr ${months}mo`;
+                                })()}
+                              </span>
+                              {activeDetailCache.data.domain_age_days < 30 && (
+                                <span className="px-1.5 py-0.5 bg-amber-100 text-amber-800 text-[9px] font-bold rounded">
+                                  🆕 NEW
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        ) : null}
 
                         {activeDetailCache.data.login_url && (
                           <div className="flex items-center justify-between">

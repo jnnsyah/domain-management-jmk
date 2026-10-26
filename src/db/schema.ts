@@ -16,6 +16,10 @@ export const websites = pgTable('websites', {
   status: websiteStatusEnum('status').default('active').notNull(),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  created_date: timestamp('created_date', { withTimezone: true }),
+  expiry_date: timestamp('expiry_date', { withTimezone: true }),
+  domain_age_days: integer('domain_age_days'),
+  last_age_check: timestamp('last_age_check', { withTimezone: true }),
 });
 
 export const endpoints = pgTable('endpoints', {
