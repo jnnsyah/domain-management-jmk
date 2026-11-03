@@ -158,6 +158,8 @@ export const Datatable: React.FC<{ initialPage?: number }> = () => {
   const [deleteEndpointTarget, setDeleteEndpointTarget] = useState<{ endpointId: string; websiteId: string } | null>(null);
   const [lostAccessConfirmOpen, setLostAccessConfirmOpen] = useState(false);
   const [lostAccessTarget, setLostAccessTarget] = useState<{ id: string; domain: string; isRestore: boolean } | null>(null);
+  const [rejectConfirmOpen, setRejectConfirmOpen] = useState(false);
+  const [rejectTargetIds, setRejectTargetIds] = useState<string[]>([]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -361,18 +363,25 @@ export const Datatable: React.FC<{ initialPage?: number }> = () => {
   const handleBulkReject = async () => {
     const selectedIds = Object.keys(selectedMap);
     if (selectedIds.length === 0) return;
-    if (!confirm(`Ubah status ${selectedIds.length} domain terpilih menjadi REJECT?`)) return;
+    setRejectTargetIds(selectedIds);
+    setRejectConfirmOpen(true);
+  };
+
+  const confirmBulkReject = async () => {
+    if (rejectTargetIds.length === 0) return;
 
     try {
       const res = await fetch('/api/websites/bulk-status', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ website_ids: selectedIds, status: 'reject' }),
+        body: JSON.stringify({ website_ids: rejectTargetIds, status: 'reject' }),
       });
       const json = await res.json();
       if (res.ok && json.success) {
-        showToast(`${selectedIds.length} domain berhasil ditandai sebagai REJECT.`, 'success');
+        showToast(`${rejectTargetIds.length} domain berhasil ditandai sebagai REJECT.`, 'success');
         setSelectedMap({});
+        setRejectConfirmOpen(false);
+        setRejectTargetIds([]);
         fetchData();
       } else {
         showToast(json.error?.message || 'Gagal mengubah status domain.', 'error');
@@ -1717,6 +1726,20 @@ export const Datatable: React.FC<{ initialPage?: number }> = () => {
         onCancel={() => {
           setLostAccessConfirmOpen(false);
           setLostAccessTarget(null);
+        }}
+      />
+
+      <ConfirmModal
+        isOpen={rejectConfirmOpen}
+        title="Konfirmasi Reject Domain"
+        message={`Tandai ${rejectTargetIds.length} domain terpilih sebagai REJECT? Domain yang di-reject tidak akan ditampilkan di daftar utama.`}
+        confirmText="Ya, Reject"
+        cancelText="Batal"
+        variant="danger"
+        onConfirm={confirmBulkReject}
+        onCancel={() => {
+          setRejectConfirmOpen(false);
+          setRejectTargetIds([]);
         }}
       />
     </div>
