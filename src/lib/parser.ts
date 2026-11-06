@@ -126,7 +126,9 @@ export function parseRawTextMulti(rawText: string): ParsedMultiWebsiteData {
   // Check if input is URL-only list (no key-value pairs, no endpoint: header)
   const isUrlOnlyList = lines.every(line => {
     const trimmed = line.trim();
-    return trimmed === '' || urlRegex.test(trimmed);
+    if (trimmed === '') return true;
+    // Check if line starts with http:// or https://
+    return /^https?:\/\//i.test(trimmed);
   });
 
   // If URL-only list, treat each URL as separate domain
