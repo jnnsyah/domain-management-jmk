@@ -98,11 +98,12 @@ export function parseRawText(rawText: string): ParsedWebsiteData {
 }
 
 /**
- * Parses raw text containing multiple domains separated by separators or blank lines
- * Supports formats:
- * - Separator: "---" or "===" or "###"
- * - Double blank lines
- * - Each domain block contains: domain, credentials, endpoints
+ * Parses raw text containing multiple domains
+ * Auto-detect formats:
+ * 1. Separator: "---" or "===" or "###"
+ * 2. Double blank lines
+ * 3. URL-only list (each URL = 1 domain) - NO separator needed
+ * 4. Mixed: credentials + endpoints per domain block
  */
 export function parseRawTextMulti(rawText: string): ParsedMultiWebsiteData {
   const lines = rawText.split(/\r?\n/);
@@ -110,15 +111,50 @@ export function parseRawTextMulti(rawText: string): ParsedMultiWebsiteData {
   const domains: ParsedWebsiteData[] = [];
   let currentBlock: string[] = [];
   let lastWasSeparator = false;
+  let hasKeyValues = false;
 
   const separatorRegex = /^(---+|===+|###+)\s*$/;
+  const kvRegex = /^(domain|username|login_user|password|login_password|login_url|email|gsocket_user|gsocket_root)\s*:/i;
+  const urlRegex = /^https?:\/\/[^\s]+/i;
 
+  // Check if input is URL-only list (no key-value pairs)
+  const isUrlOnlyList = lines.every(line => {
+    const trimmed = line.trim();
+    return trimmed === '' || urlRegex.test(trimmed);
+  });
+
+  // If URL-only list, treat each URL as separate domain
+  if (isUrlOnlyList) {
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+      
+      try {
+        const url = new URL(trimmed);
+        const domain = url.hostname.replace(/^www\./i, '');
+        domains.push({
+          domain,
+          login_url: null,
+          email: null,
+          login_user: null,
+          login_password: null,
+          gsocket_user: null,
+          gsocket_root: null,
+          endpoints: [{ url: trimmed, is_primary: true }],
+        });
+      } catch {
+        // Skip invalid URLs
+      }
+    }
+    return { domains, total: domains.length };
+  }
+
+  // Standard parsing for mixed format
   for (const line of lines) {
     const trimmed = line.trim();
     
     // Check for separator line
     if (separatorRegex.test(trimmed)) {
-      // If we have accumulated content, parse it as a domain block
       if (currentBlock.length > 0) {
         const blockText = currentBlock.join('\n');
         const parsed = parseRawText(blockText);
@@ -126,12 +162,13 @@ export function parseRawTextMulti(rawText: string): ParsedMultiWebsiteData {
           domains.push(parsed);
         }
         currentBlock = [];
+        hasKeyValues = false;
       }
       lastWasSeparator = true;
       continue;
     }
 
-    // Check for blank line after blank line (double blank = separator)
+    // Check for blank line
     if (trimmed === '') {
       if (lastWasSeparator) {
         continue;
@@ -143,7 +180,17 @@ export function parseRawTextMulti(rawText: string): ParsedMultiWebsiteData {
       continue;
     }
 
-    // Non-empty, non-separator line
+    // Check if line has key-value
+    if (kvRegex.test(trimmed)) {
+      hasKeyValues = true;
+    }
+
+    // Check if URL line and we have previous block with key-values
+    if (urlRegex.test(trimmed) && hasKeyValues && currentBlock.length > 0) {
+      // Check if next line is also URL (means new domain starting)
+      // For now, just add to current block
+    }
+
     currentBlock.push(trimmed);
     lastWasSeparator = false;
   }
