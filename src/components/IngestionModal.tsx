@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { X, FileText, CheckCircle2, AlertCircle, Clipboard } from 'lucide-react';
-import { parseRawText } from '@/lib/parser';
+import { X, FileText, CheckCircle2, AlertCircle, Clipboard, Plus, RefreshCw } from 'lucide-react';
+import { parseRawTextMulti } from '@/lib/parser';
 import { useToast } from './Toast';
 
 interface IngestionModalProps {
@@ -9,11 +9,18 @@ interface IngestionModalProps {
   onSuccess: () => void;
 }
 
+interface BatchResult {
+  domain: string;
+  action: 'created' | 'updated' | 'skipped';
+  reason?: string;
+}
+
 export const IngestionModal: React.FC<IngestionModalProps> = ({ isOpen, onClose, onSuccess }) => {
   const { showToast } = useToast();
   const [rawText, setRawText] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [results, setResults] = useState<BatchResult[] | null>(null);
 
   // Close drawer when Escape key is pressed
   useEffect(() => {
@@ -26,9 +33,18 @@ export const IngestionModal: React.FC<IngestionModalProps> = ({ isOpen, onClose,
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
 
+  // Reset state when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setRawText('');
+      setErrorMsg(null);
+      setResults(null);
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
-  const parsedPreview = rawText.trim() ? parseRawText(rawText) : null;
+  const parsedPreview = rawText.trim() ? parseRawTextMulti(rawText) : null;
 
   const handlePasteFromClipboard = async () => {
     try {
@@ -50,9 +66,10 @@ export const IngestionModal: React.FC<IngestionModalProps> = ({ isOpen, onClose,
 
     setLoading(true);
     setErrorMsg(null);
+    setResults(null);
 
     try {
-      const res = await fetch('/api/websites/save', {
+      const res = await fetch('/api/websites/batch-save', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ raw_text: rawText }),
@@ -61,15 +78,18 @@ export const IngestionModal: React.FC<IngestionModalProps> = ({ isOpen, onClose,
       const data = await res.json();
 
       if (res.ok && data.success) {
-        showToast(
-          data.data.action === 'created'
-            ? `Domain '${data.data.domain}' berhasil ditambahkan!`
-            : `Domain '${data.data.domain}' berhasil diperbarui!`,
-          'success'
-        );
-        setRawText('');
+        setResults(data.data.results);
+        
+        const { created, updated, skipped, total } = data.data;
+        
+        // Show summary toast
+        if (skipped === 0) {
+          showToast(`${total} domain berhasil diproses (${created} baru, ${updated} diperbarui)`, 'success');
+        } else {
+          showToast(`${total} domain diproses: ${created} baru, ${updated} diperbarui, ${skipped} dilewati`, 'success');
+        }
+        
         onSuccess();
-        onClose();
       } else {
         setErrorMsg(data.error?.message || 'Gagal menyimpan data domain.');
       }
@@ -100,8 +120,8 @@ export const IngestionModal: React.FC<IngestionModalProps> = ({ isOpen, onClose,
                   <FileText className="w-5 h-5" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-bold text-slate-900 leading-tight">Tambah Domain / Batch Ingest</h2>
-                  <p className="text-xs text-slate-500">Paste raw text kredensial & list endpoint</p>
+                  <h2 className="text-lg font-bold text-slate-900 leading-tight">Batch Ingest Multi Domain</h2>
+                  <p className="text-xs text-slate-500">Paste raw text untuk banyak domain sekaligus</p>
                 </div>
               </div>
               <button
@@ -136,61 +156,101 @@ export const IngestionModal: React.FC<IngestionModalProps> = ({ isOpen, onClose,
                 </div>
 
                 <textarea
-                  rows={10}
+                  rows={8}
                   value={rawText}
                   onChange={(e) => setRawText(e.target.value)}
-                  placeholder={`username: admin\npassword: secret123\nlogin_url: https://example.com/wp-login.php\nendpoint:\nhttps://example.com/shell1.php\nhttps://example.com/shell2.php`}
+                  placeholder={`domain: example1.com\nusername: admin\npassword: secret123\nlogin_url: https://example1.com/wp-login.php\nendpoint:\nhttps://example1.com/shell1.php\n---\ndomain: example2.com\nusername: admin2\npassword: secret456\nlogin_url: https://example2.com/wp-login.php\nendpoint:\nhttps://example2.com/shell1.php`}
                   className="w-full p-4 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-mono text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:bg-white transition-all"
                 />
+                <p className="text-xs text-slate-500 mt-1">
+                  Pisahkan setiap domain dengan <code className="bg-slate-100 px-1 rounded">---</code> atau baris kosong ganda
+                </p>
               </div>
 
-              {/* Live Regex Parser Preview */}
-              {parsedPreview && (
-                <div className="p-4 rounded-xl bg-indigo-50/50 border border-indigo-100 space-y-2 text-xs">
+              {/* Live Multi-Domain Preview */}
+              {parsedPreview && parsedPreview.total > 0 && (
+                <div className="p-4 rounded-xl bg-indigo-50/50 border border-indigo-100 space-y-3 text-xs">
                   <div className="font-semibold text-indigo-900 flex items-center space-x-1.5">
                     <CheckCircle2 className="w-4 h-4 text-indigo-600" />
-                    <span>Live Regex Parser Preview:</span>
+                    <span>Terdeteksi {parsedPreview.total} domain:</span>
                   </div>
-                  <div className="grid grid-cols-2 gap-2 text-slate-700">
-                    <div>Domain: <strong className="text-slate-900">{parsedPreview.domain || '(Auto-fill from endpoint)'}</strong></div>
-                    <div>Username: <strong className="text-slate-900">{parsedPreview.login_user || '-'}</strong></div>
-                    <div>Password: <strong className="text-slate-900">{parsedPreview.login_password || '-'}</strong></div>
-                    <div>Login URL: <strong className="text-slate-900">{parsedPreview.login_url || '-'}</strong></div>
+                  
+                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                    {parsedPreview.domains.map((domain, i) => (
+                      <div key={i} className="p-2 bg-white/60 rounded-lg border border-indigo-100">
+                        <div className="font-semibold text-slate-900 mb-1">
+                          {i + 1}. {domain.domain}
+                        </div>
+                        <div className="grid grid-cols-2 gap-1 text-slate-600">
+                          <div>User: <strong className="text-slate-800">{domain.login_user || '-'}</strong></div>
+                          <div>Pass: <strong className="text-slate-800">{domain.login_password ? '•••••' : '-'}</strong></div>
+                          <div>Login URL: <strong className="text-slate-800">{domain.login_url ? '✓' : '-'}</strong></div>
+                          <div>Endpoints: <strong className="text-slate-800">{domain.endpoints.length}</strong></div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                  {parsedPreview.endpoints.length > 0 && (
-                    <div className="pt-2 border-t border-indigo-100/60">
-                      <div className="text-slate-500 mb-1">Endpoints detected ({parsedPreview.endpoints.length}):</div>
-                      <ul className="space-y-1 font-mono text-[11px]">
-                        {parsedPreview.endpoints.map((ep, i) => (
-                          <li key={i} className="flex items-center space-x-1.5">
-                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-sans font-bold ${ep.is_primary ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-700'}`}>
-                              {ep.is_primary ? 'Primary' : 'Sub'}
-                            </span>
-                            <span className="truncate">{ep.url}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
+                </div>
+              )}
+
+              {/* Batch Results */}
+              {results && results.length > 0 && (
+                <div className="p-4 rounded-xl bg-emerald-50/50 border border-emerald-100 space-y-3 text-xs">
+                  <div className="font-semibold text-emerald-900 flex items-center space-x-1.5">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    <span>Hasil Proses ({results.length} domain):</span>
+                  </div>
+                  
+                  <div className="space-y-1">
+                    {results.map((result, i) => (
+                      <div key={i} className="flex items-center justify-between p-2 bg-white/60 rounded-lg">
+                        <span className="font-mono text-slate-800">{result.domain}</span>
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                          result.action === 'created' ? 'bg-emerald-500 text-white' :
+                          result.action === 'updated' ? 'bg-blue-500 text-white' :
+                          'bg-slate-300 text-slate-700'
+                        }`}>
+                          {result.action === 'created' ? 'NEW' : result.action === 'updated' ? 'UPDATED' : 'SKIPPED'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
 
               {/* Sidebar Footer Action */}
-              <div className="mt-auto pt-4 border-t border-slate-200 flex items-center justify-end space-x-3 bg-white sticky bottom-0">
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="px-4 py-2.5 text-sm font-semibold text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition-all"
-                >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  disabled={loading || !rawText.trim()}
-                  className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white text-sm font-semibold rounded-xl shadow-md shadow-indigo-600/20 transition-all disabled:opacity-50 touch-manipulation"
-                >
-                  {loading ? 'Menyimpan...' : 'Simpan Domain'}
-                </button>
+              <div className="mt-auto pt-4 border-t border-slate-200 flex items-center justify-between space-x-3 bg-white sticky bottom-0">
+                <div className="text-xs text-slate-500">
+                  {parsedPreview && parsedPreview.total > 0 && (
+                    <span>{parsedPreview.total} domain siap diproses</span>
+                  )}
+                </div>
+                <div className="flex items-center space-x-3">
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    className="px-4 py-2.5 text-sm font-semibold text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition-all"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={loading || !rawText.trim()}
+                    className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white text-sm font-semibold rounded-xl shadow-md shadow-indigo-600/20 transition-all disabled:opacity-50 touch-manipulation flex items-center space-x-2"
+                  >
+                    {loading ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                        <span>Memproses...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="w-4 h-4" />
+                        <span>Simpan {parsedPreview?.total || 0} Domain</span>
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             </form>
 

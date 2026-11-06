@@ -9,6 +9,11 @@ export interface ParsedWebsiteData {
   endpoints: { url: string; is_primary: boolean }[];
 }
 
+export interface ParsedMultiWebsiteData {
+  domains: ParsedWebsiteData[];
+  total: number;
+}
+
 /**
  * Parses raw text input line-by-line using key-value and endpoint extraction rules (PRD Section 3.1)
  */
@@ -36,7 +41,6 @@ export function parseRawText(rawText: string): ParsedWebsiteData {
 
     if (endpointHeaderRegex.test(line)) {
       isScanningEndpoints = true;
-      // Check if there is an inline URL on the same line after 'endpoint:'
       const inlineUrlMatch = line.match(/^endpoints?\s*:\s*(https?:\/\/[^\s]+)/i);
       if (inlineUrlMatch && inlineUrlMatch[1]) {
         endpoints.push(inlineUrlMatch[1]);
@@ -90,5 +94,71 @@ export function parseRawText(rawText: string): ParsedWebsiteData {
     gsocket_user,
     gsocket_root,
     endpoints: structuredEndpoints,
+  };
+}
+
+/**
+ * Parses raw text containing multiple domains separated by separators or blank lines
+ * Supports formats:
+ * - Separator: "---" or "===" or "###"
+ * - Double blank lines
+ * - Each domain block contains: domain, credentials, endpoints
+ */
+export function parseRawTextMulti(rawText: string): ParsedMultiWebsiteData {
+  const lines = rawText.split(/\r?\n/);
+  
+  const domains: ParsedWebsiteData[] = [];
+  let currentBlock: string[] = [];
+  let lastWasSeparator = false;
+
+  const separatorRegex = /^(---+|===+|###+)\s*$/;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    
+    // Check for separator line
+    if (separatorRegex.test(trimmed)) {
+      // If we have accumulated content, parse it as a domain block
+      if (currentBlock.length > 0) {
+        const blockText = currentBlock.join('\n');
+        const parsed = parseRawText(blockText);
+        if (parsed.domain) {
+          domains.push(parsed);
+        }
+        currentBlock = [];
+      }
+      lastWasSeparator = true;
+      continue;
+    }
+
+    // Check for blank line after blank line (double blank = separator)
+    if (trimmed === '') {
+      if (lastWasSeparator) {
+        continue;
+      }
+      if (currentBlock.length > 0) {
+        lastWasSeparator = true;
+        continue;
+      }
+      continue;
+    }
+
+    // Non-empty, non-separator line
+    currentBlock.push(trimmed);
+    lastWasSeparator = false;
+  }
+
+  // Parse remaining block
+  if (currentBlock.length > 0) {
+    const blockText = currentBlock.join('\n');
+    const parsed = parseRawText(blockText);
+    if (parsed.domain) {
+      domains.push(parsed);
+    }
+  }
+
+  return {
+    domains,
+    total: domains.length,
   };
 }
