@@ -15,6 +15,18 @@ export interface ParsedMultiWebsiteData {
 }
 
 /**
+ * Extract domain from URL
+ */
+function extractDomainFromUrl(url: string): string | null {
+  try {
+    const parsed = new URL(url);
+    return parsed.hostname.replace(/^www\./i, '');
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Parses raw text input line-by-line using key-value and endpoint extraction rules (PRD Section 3.1)
  */
 export function parseRawText(rawText: string): ParsedWebsiteData {
@@ -71,12 +83,7 @@ export function parseRawText(rawText: string): ParsedWebsiteData {
 
   // Extract domain from first endpoint if domain wasn't explicitly given
   if (!domain && endpoints.length > 0) {
-    try {
-      const firstUrl = new URL(endpoints[0]);
-      domain = firstUrl.hostname.replace(/^www\./i, '');
-    } catch {
-      domain = null;
-    }
+    domain = extractDomainFromUrl(endpoints[0]);
   }
 
   // Format endpoints (first one is primary)
@@ -101,23 +108,22 @@ export function parseRawText(rawText: string): ParsedWebsiteData {
  * Parses raw text containing multiple domains
  * Auto-detect formats:
  * 1. Separator: "---" or "===" or "###"
- * 2. Double blank lines
- * 3. URL-only list (each URL = 1 domain) - NO separator needed
- * 4. Mixed: credentials + endpoints per domain block
+ * 2. URL with different domain = new block (no separator needed)
+ * 3. Double blank lines
+ * 4. URL-only list (each URL = 1 domain)
  */
 export function parseRawTextMulti(rawText: string): ParsedMultiWebsiteData {
   const lines = rawText.split(/\r?\n/);
   
   const domains: ParsedWebsiteData[] = [];
   let currentBlock: string[] = [];
+  let currentDomain: string | null = null;
   let lastWasSeparator = false;
-  let hasKeyValues = false;
 
   const separatorRegex = /^(---+|===+|###+)\s*$/;
-  const kvRegex = /^(domain|username|login_user|password|login_password|login_url|email|gsocket_user|gsocket_root)\s*:/i;
   const urlRegex = /^https?:\/\/[^\s]+/i;
 
-  // Check if input is URL-only list (no key-value pairs)
+  // Check if input is URL-only list (no key-value pairs, no endpoint: header)
   const isUrlOnlyList = lines.every(line => {
     const trimmed = line.trim();
     return trimmed === '' || urlRegex.test(trimmed);
@@ -129,9 +135,8 @@ export function parseRawTextMulti(rawText: string): ParsedMultiWebsiteData {
       const trimmed = line.trim();
       if (!trimmed) continue;
       
-      try {
-        const url = new URL(trimmed);
-        const domain = url.hostname.replace(/^www\./i, '');
+      const domain = extractDomainFromUrl(trimmed);
+      if (domain) {
         domains.push({
           domain,
           login_url: null,
@@ -142,18 +147,16 @@ export function parseRawTextMulti(rawText: string): ParsedMultiWebsiteData {
           gsocket_root: null,
           endpoints: [{ url: trimmed, is_primary: true }],
         });
-      } catch {
-        // Skip invalid URLs
       }
     }
     return { domains, total: domains.length };
   }
 
-  // Standard parsing for mixed format
+  // Mixed format: auto-detect domain change from URLs
   for (const line of lines) {
     const trimmed = line.trim();
     
-    // Check for separator line
+    // Check for explicit separator line
     if (separatorRegex.test(trimmed)) {
       if (currentBlock.length > 0) {
         const blockText = currentBlock.join('\n');
@@ -162,7 +165,7 @@ export function parseRawTextMulti(rawText: string): ParsedMultiWebsiteData {
           domains.push(parsed);
         }
         currentBlock = [];
-        hasKeyValues = false;
+        currentDomain = null;
       }
       lastWasSeparator = true;
       continue;
@@ -180,15 +183,45 @@ export function parseRawTextMulti(rawText: string): ParsedMultiWebsiteData {
       continue;
     }
 
-    // Check if line has key-value
-    if (kvRegex.test(trimmed)) {
-      hasKeyValues = true;
+    // Check if URL line - detect domain change
+    if (urlRegex.test(trimmed)) {
+      const urlDomain = extractDomainFromUrl(trimmed);
+      
+      // If URL domain differs from current block domain, start new block
+      if (urlDomain && currentDomain && urlDomain !== currentDomain && currentBlock.length > 0) {
+        // Save current block
+        const blockText = currentBlock.join('\n');
+        const parsed = parseRawText(blockText);
+        if (parsed.domain) {
+          domains.push(parsed);
+        }
+        // Start new block with this URL
+        currentBlock = [trimmed];
+        currentDomain = urlDomain;
+        lastWasSeparator = false;
+        continue;
+      }
+      
+      // Update current domain if not set
+      if (!currentDomain && urlDomain) {
+        currentDomain = urlDomain;
+      }
     }
 
-    // Check if URL line and we have previous block with key-values
-    if (urlRegex.test(trimmed) && hasKeyValues && currentBlock.length > 0) {
-      // Check if next line is also URL (means new domain starting)
-      // For now, just add to current block
+    // Check if key-value with domain
+    const domainMatch = trimmed.match(/^domain\s*:\s*(.+)$/i);
+    if (domainMatch) {
+      const newDomain = domainMatch[1].trim().replace(/^www\./i, '');
+      // If domain differs from current, start new block
+      if (currentDomain && newDomain !== currentDomain && currentBlock.length > 0) {
+        const blockText = currentBlock.join('\n');
+        const parsed = parseRawText(blockText);
+        if (parsed.domain) {
+          domains.push(parsed);
+        }
+        currentBlock = [];
+      }
+      currentDomain = newDomain;
     }
 
     currentBlock.push(trimmed);
