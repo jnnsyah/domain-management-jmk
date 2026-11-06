@@ -208,6 +208,26 @@ export function parseRawTextMulti(rawText: string): ParsedMultiWebsiteData {
       }
     }
 
+    // Check if login_url - also detect domain change
+    const loginUrlMatch = trimmed.match(/^login_url\s*:\s*(https?:\/\/[^\s]+)$/i);
+    if (loginUrlMatch) {
+      const urlDomain = extractDomainFromUrl(loginUrlMatch[1]);
+      // Set currentDomain from login_url if not set yet
+      if (urlDomain && !currentDomain) {
+        currentDomain = urlDomain;
+      }
+      // If login_url domain differs from current, start new block
+      if (urlDomain && currentDomain && urlDomain !== currentDomain && currentBlock.length > 0) {
+        const blockText = currentBlock.join('\n');
+        const parsed = parseRawText(blockText);
+        if (parsed.domain) {
+          domains.push(parsed);
+        }
+        currentBlock = [];
+        currentDomain = urlDomain;
+      }
+    }
+
     // Check if key-value with domain
     const domainMatch = trimmed.match(/^domain\s*:\s*(.+)$/i);
     if (domainMatch) {
