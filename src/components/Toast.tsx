@@ -38,11 +38,11 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   return (
     <ToastContext.Provider value={{ showToast }}>
       {children}
-      <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 flex flex-col space-y-2 max-w-sm w-full pointer-events-none px-4 sm:px-0">
+      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex flex-col-reverse space-y-reverse space-y-2 max-w-sm w-full pointer-events-none px-4">
         {toasts.map((toast) => (
           <div
             key={toast.id}
-            className={`pointer-events-auto flex items-center justify-between p-4 rounded-xl shadow-lg border text-sm font-medium transition-all transform translate-y-0 ${
+            className={`pointer-events-auto flex items-center justify-between p-4 rounded-xl shadow-lg border text-sm font-medium animate-slide-up min-w-0 ${
               toast.type === 'success'
                 ? 'bg-white border-emerald-200 text-emerald-900 shadow-emerald-500/10'
                 : toast.type === 'error'
@@ -50,7 +50,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 : 'bg-white border-indigo-200 text-indigo-900 shadow-indigo-500/10'
             }`}
           >
-            <div className="flex items-center space-x-3 min-w-0">
+            <div className="flex items-center space-x-3 min-w-0 flex-1">
               {toast.type === 'success' && <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />}
               {toast.type === 'error' && <AlertCircle className="w-5 h-5 text-rose-600 shrink-0" />}
               {toast.type === 'info' && <Info className="w-5 h-5 text-indigo-600 shrink-0" />}
@@ -58,13 +58,28 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             </div>
             <button
               onClick={() => removeToast(toast.id)}
-              className="ml-3 text-slate-400 hover:text-slate-600 p-1 rounded-lg transition-colors"
+              className="ml-3 text-slate-400 hover:text-slate-600 p-1 rounded-lg transition-colors shrink-0"
             >
               <X className="w-4 h-4" />
             </button>
           </div>
         ))}
       </div>
+      <style>{`
+        @keyframes slide-up {
+          from {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        .animate-slide-up {
+          animation: slide-up 0.3s ease-out;
+        }
+      `}</style>
     </ToastContext.Provider>
   );
 };
