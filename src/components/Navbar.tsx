@@ -36,7 +36,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPath = '/', onOpenIngestM
       setQuickPasteLoading(true);
       showToast('Membaca clipboard & memproses domain...', 'info');
 
-      const res = await fetch('/api/websites/save', {
+      const res = await fetch('/api/websites/batch-save', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ raw_text: clipboardText }),
@@ -45,12 +45,23 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPath = '/', onOpenIngestM
       const data = await res.json();
 
       if (res.ok && data.success) {
-        showToast(
-          data.data.action === 'created'
-            ? `Domain '${data.data.domain}' berhasil ditambahkan dari clipboard!`
-            : `Domain '${data.data.domain}' berhasil diperbarui dari clipboard!`,
-          'success'
-        );
+        const { total, created, updated, skipped } = data.data;
+        
+        if (total === 1) {
+          const result = data.data.results[0];
+          showToast(
+            result.action === 'created'
+              ? `Domain '${result.domain}' berhasil ditambahkan dari clipboard!`
+              : `Domain '${result.domain}' berhasil diperbarui dari clipboard!`,
+            'success'
+          );
+        } else {
+          showToast(
+            `${total} domain diproses: ${created} baru, ${updated} diperbarui${skipped > 0 ? `, ${skipped} dilewati` : ''}`,
+            skipped > 0 ? 'success' : 'success'
+          );
+        }
+        
         if (onRefreshData) onRefreshData();
       } else {
         showToast(data.error?.message || 'Gagal menyimpan data dari clipboard.', 'error');
