@@ -46,11 +46,11 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 : 'bg-white border-indigo-200 text-indigo-900 shadow-indigo-500/10'
             }`}
           >
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-3 min-w-0">
               {toast.type === 'success' && <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />}
               {toast.type === 'error' && <AlertCircle className="w-5 h-5 text-rose-600 shrink-0" />}
               {toast.type === 'info' && <Info className="w-5 h-5 text-indigo-600 shrink-0" />}
-              <span className="leading-snug">{toast.message}</span>
+              <span className="leading-snug break-words">{toast.message}</span>
             </div>
             <button
               onClick={() => removeToast(toast.id)}
